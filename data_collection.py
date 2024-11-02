@@ -2,8 +2,10 @@ import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 from pdb import set_trace
+import os
+import dataclasses
 
-class PlayerStats:
+class TeamStats:
     def __init__(self, name, team, games_played, receptions, receiving_yards, touchdowns):
         self.name = name
         self.team = team
@@ -27,44 +29,54 @@ def scrape_stats(url):
     soup = BeautifulSoup(response.content, 'html.parser')
     
     # Find the table containing the stats
-    table = soup.find('table', {'class': 'TableBase-table'})
-    
+    table = soup.find('table')
     players = []
     
     # Debugging: Print the entire table HTML to see the structure
-    # print(table.prettify())  # Uncomment this line to debug the HTML structure
 
     # Parse the table rows
-    #
-    for row in table.find_all('tr')[1:]:  # Skip the header row
-        columns = row.find_all('td')
-        if len(columns) > 0:
-            set_trace()
-            # Safely extract player name
-            player_link = columns[1].find('a')
-            name = player_link.text.strip() if player_link else 'N/A'  # Default to 'N/A' if not found
-            
-            team = columns[2].text.strip()  # Team abbreviation
-            games_played = columns[3].text.strip()
-            receptions = columns[4].text.strip()
-            receiving_yards = columns[5].text.strip()
-            touchdowns = columns[6].text.strip()
 
-            player = PlayerStats(name, team, games_played, receptions, receiving_yards, touchdowns)
-            players.append(player.to_dict())
-    
-    return players
+    rows = []
+    for tr in table.find_all('tr')[3:]:  # Skip the header row
+        col = []
+        for i, td in enumerate(tr.find_all('td')):
+            val = td.text
+            #if i != 1: val = pd.to_numeric(td.text)
+            col.append(val)
+        rows.append(col)
+        
+    return rows
 
 def main():
-    url = 'https://www.cbssports.com/fantasy/football/stats/WR/2023/ytd/stats/nonppr/'
-    stats = scrape_stats(url)
+    positions = ['QB'] # 'TE','WR', 
+    for pos in positions:
+        url = f"https://www.cbssports.com/fantasy/football/stats/posvsdef/{pos}/ALL/avg/standard"
+        stats = scrape_stats(url)
+        headers = ['Rank','Team','PAtt','Cmp','PYd','TD','Int','Rate','RAtt','RYd','AVG','TD','FL','FPTS']
+        df = pd.DataFrame(stats,columns = headers)
+        df.iloc[:,2:] = df.iloc[:,2:].apply(pd.to_numeric,errors = 'coerce')
+        df.sort_values(by=df.columns[4],inplace = True,ascending=False)
+        [print(i.split()[-1]) for i in df.iloc[:3,1]]
+        
+        '''
+        file_name = ''
+        df.to_csv('fantasy_football_wr_stats_2024.csv', index=False)
+        print("Data has been scraped and saved to fantasy_football_wr_stats_2023.csv") '''
+        
+        
+    #url = "https://www.cbssports.com/fantasy/football/stats/posvsdef/QB/ALL/avg/standard"
+    #stats = scrape_stats(url)
     
     # Organize data into a DataFrame
-    df = pd.DataFrame(stats)
+    #df = pd.DataFrame(stats)
     
     # Save to CSV file
-    df.to_csv('fantasy_football_wr_stats_2023.csv', index=False)
-    print("Data has been scraped and saved to fantasy_football_wr_stats_2023.csv")
+    '''
+    file_name = ''
+    df.to_csv('fantasy_football_wr_stats_2024.csv', index=False)
+    print("Data has been scraped and saved to fantasy_football_wr_stats_2023.csv") '''
+  
+    #print(df)
 
 if __name__ == "__main__":
     main()
