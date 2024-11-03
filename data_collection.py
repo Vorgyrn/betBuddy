@@ -63,15 +63,17 @@ class WeakD:
         return rows
     
     def weakVsStat(self, stat):
-        for pos in positions:
-            header = headers[pos]
+        for pos in self.positions:
+            header = self.headers[pos]
             # skip the position if the stat is not available
-            if stat not in header: continue
-            idx = header.index(stat)
+            if stat not in header: 
+                print(f"Stat {stat} is not available for {pos}s.")
+                continue
             print(f"Searching for stanky D versus {pos} {stat}...")
             stats = self.scrape(pos)
             df = pd.DataFrame(stats, columns=header)
             df.iloc[:,2:] = df.iloc[:,2:].apply(pd.to_numeric, errors='coerce')
+            idx = header.index(stat)
             df.sort_values(by=df.columns[idx], inplace=True, ascending=False)
             [print(i.split()[-1]) for i in df.iloc[:3,1]]  
             print('')
@@ -98,7 +100,7 @@ def scrape_stats(url):
 def main():
     
     weak = WeakD()
-    weak.weakVsStat('RTD')
+    weak.weakVsStat('PTD')
     
     '''
     param = 'RYd'
