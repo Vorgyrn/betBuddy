@@ -42,29 +42,32 @@ class Match:
         self.date=datetime.fromisoformat(data['date'].replace("Z", "+00:00"))
         self.date_str= convertISOTime(data['date'])
         if 'weather' in data.keys(): self.weather=data['weather']
-        print(self)
         
     def __repr__(self):
         return f'Week {self.week} match of {self.name} on {self.date_str}'
         
 class NFLWeek:
     events=[]
+    byes = []
     url = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard'
     def __init__(self):
-        pass
+        self.get_schedule()
     
-    def get_sched(self):
+    def get_schedule(self):
         response = requests.get(self.url)
         sched = response.json()
-        print(sched.keys())
-        self.set_byes(sched['season'])
+        self.week = sched['week']['number']
+        self.set_byes(sched['week'])
         for i in sched['events']:
             self.events.append(Match(i))
-            
         
+        # sort by date 
+        self.events = sorted(self.events, key=lambda obj: obj.date)
         
     def set_byes(self, data):
-        pass
+        byes = data['teamsOnBye']
+        for team in byes:
+            self.byes.append(team['name'])
         
 class WeakD:
     positions = ['QB','TE','WR', 'RB'] #  'TE','WR', 'RB'
@@ -133,7 +136,7 @@ def scrape_stats(url):
     return rows
 
 def main():
-    
+    week = NFLWeek()
     weak = WeakD()
     weak.weakVsStat('RTD')
     
@@ -157,4 +160,4 @@ def main():
         print("Data has been scraped and saved to fantasy_football_wr_stats_2023.csv") '''
 
 if __name__ == "__main__":
-    NFLWeek().get_sched()
+    main()
