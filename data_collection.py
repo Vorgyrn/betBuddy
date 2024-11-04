@@ -54,6 +54,7 @@ class NFLWeek:
         self.get_schedule()
     
     def get_schedule(self):
+        # requests the weeks schedule from self.url and extracts the week number, matches and teams on bye
         response = requests.get(self.url)
         sched = response.json()
         self.week = sched['week']['number']
@@ -65,6 +66,7 @@ class NFLWeek:
         self.events = sorted(self.events, key=lambda obj: obj.date)
         
     def set_byes(self, data):
+        # extract the teams on bye
         byes = data['teamsOnBye']
         for team in byes:
             self.byes.append(team['name'])
@@ -76,8 +78,8 @@ class WeakD:
                 'WR':['Rank','Team','Att','RYd','RAvg','RTD', 'Targ','Recpt','CYd','CAvg','CTd','FL','FPTS'],
                 'RB':['Rank','Team','Att','RYd','RAvg','RTD', 'Targ','Recpt','CYd','CAvg','CTd','FL','FPTS'] }
     
-    def __init__(self, byes=[]):
-        self.byes = byes
+    def __init__(self):
+        self.schedule = NFLWeek()
     
     def scrape(self, pos):
         url = f"https://www.cbssports.com/fantasy/football/stats/posvsdef/{pos}/ALL/avg/standard"
@@ -89,11 +91,12 @@ class WeakD:
 
         # Parse the table rows
         rows = []
+        print(self.schedule.byes)
         for tr in table.find_all('tr')[3:]:  # Skip the header rows
             col = []
             onBye = False
             for i, td in enumerate(tr.find_all('td')):
-                if i == 1 and td.text.split()[-1] in self.byes: onBye = True
+                if i == 1 and td.text.split()[-1] in self.schedule.byes: onBye = True
                 col.append(td.text)
             # if team on bye dont append
             if not onBye: rows.append(col)
@@ -115,28 +118,8 @@ class WeakD:
             df.sort_values(by=df.columns[idx], inplace=True, ascending=False)
             [print(i.split()[-1]) for i in df.iloc[:3,1]]  
             print('')
-            
-def scrape_stats(url):
-    response = requests.get(url)
-    soup = BeautifulSoup(response.content, 'html.parser')
-    
-    # Find the table containing the stats
-    table = soup.find('table')
-
-    # Parse the table rows
-    rows = []
-    for tr in table.find_all('tr')[3:]:  # Skip the header row
-        col = []
-        for i, td in enumerate(tr.find_all('td')):
-            # if i == 1: if team name in bye list set skip flag to true
-            col.append(td.text)
-        # if team on bye dont append
-        rows.append(col)
-        
-    return rows
 
 def main():
-    week = NFLWeek()
     weak = WeakD()
     weak.weakVsStat('RTD')
     
