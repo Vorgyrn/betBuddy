@@ -4,6 +4,9 @@ import pandas as pd
 from pdb import set_trace
 import os
 import dataclasses
+import json
+from datetime import datetime
+import pytz
 
 positions = ['QB','TE','WR', 'RB'] #  'TE','WR', 'RB'
 headers = {'QB':['Rank','Team','PAtt','Cmp','PYd','PTD','Int','Rate','RAtt','RYd','AVG','RTD','FL','FPTS'],
@@ -12,25 +15,57 @@ headers = {'QB':['Rank','Team','PAtt','Cmp','PYd','PTD','Int','Rate','RAtt','RYd
             'RB':['Rank','Team','Att','RYd','RAvg','RTD', 'Targ','Recpt','CYd','CAvg','CTd','FL','FPTS']
         }
 
-class TeamStats:
-    def __init__(self, name, team, games_played, receptions, receiving_yards, touchdowns):
-        self.name = name
-        self.team = team
-        self.games_played = games_played
-        self.receptions = receptions
-        self.receiving_yards = receiving_yards
-        self.touchdowns = touchdowns
+# update based off where you live
+reg_str = 'US/Arizona'
+REIGION = pytz.timezone(reg_str)
 
-    def to_dict(self):
-        return {
-            'Name': self.name,
-            'Team': self.team,
-            'Games Played': self.games_played,
-            'Receptions': self.receptions,
-            'Receiving Yards': self.receiving_yards,
-            'Touchdowns': self.touchdowns
-        }
+def convertISOTime(iso_time):
+    # input: iso_time - a string in iso time
+    # returns: a string formatted to the region you are in
+    dt_utc = datetime.fromisoformat(iso_time.replace("Z", "+00:00"))
+    dt_region = dt_utc.astimezone(REIGION)
+    formattedTime = dt_region.strftime('%m/%d/%y %I:%M %p')
+    return formattedTime
 
+class Match:
+    name=''
+    home=''
+    away=''
+    date=None
+    week=''
+    weather=None
+    
+    def __init__(self, data):
+        self.name=data['name']
+        self.away, self.home = data['name'].split(' at ')
+        self.week=data['week']['number']
+        self.date=datetime.fromisoformat(data['date'].replace("Z", "+00:00"))
+        self.date_str= convertISOTime(data['date'])
+        if 'weather' in data.keys(): self.weather=data['weather']
+        print(self)
+        
+    def __repr__(self):
+        return f'Week {self.week} match of {self.name} on {self.date_str}'
+        
+class NFLWeek:
+    events=[]
+    url = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard'
+    def __init__(self):
+        pass
+    
+    def get_sched(self):
+        response = requests.get(self.url)
+        sched = response.json()
+        print(sched.keys())
+        self.set_byes(sched['season'])
+        for i in sched['events']:
+            self.events.append(Match(i))
+            
+        
+        
+    def set_byes(self, data):
+        pass
+        
 class WeakD:
     positions = ['QB','TE','WR', 'RB'] #  'TE','WR', 'RB'
     headers = {'QB':['Rank','Team','PAtt','Cmp','PYd','PTD','Int','Rate','RAtt','RYd','AVG','RTD','FL','FPTS'],
@@ -100,7 +135,7 @@ def scrape_stats(url):
 def main():
     
     weak = WeakD()
-    weak.weakVsStat('PTD')
+    weak.weakVsStat('RTD')
     
     '''
     param = 'RYd'
@@ -122,4 +157,4 @@ def main():
         print("Data has been scraped and saved to fantasy_football_wr_stats_2023.csv") '''
 
 if __name__ == "__main__":
-    main()
+    NFLWeek().get_sched()
