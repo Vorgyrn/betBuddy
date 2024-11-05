@@ -8,12 +8,11 @@ import json
 from datetime import datetime
 import pytz
 
-positions = ['QB','TE','WR', 'RB'] #  'TE','WR', 'RB'
-headers = {'QB':['Rank','Team','PAtt','Cmp','PYd','PTD','Int','Rate','RAtt','RYd','AVG','RTD','FL','FPTS'],
-            'TE':['Rank','Team','Att','RYd','RAvg','RTD', 'Targ','Recpt','CYd','CAvg','CTd','FL','FPTS'],
-            'WR':['Rank','Team','Att','RYd','RAvg','RTD', 'Targ','Recpt','CYd','CAvg','CTd','FL','FPTS'],
-            'RB':['Rank','Team','Att','RYd','RAvg','RTD', 'Targ','Recpt','CYd','CAvg','CTd','FL','FPTS']
-        }
+positions = ['QB','TE','WR', 'RB']
+headers = {'QB':['Rank','Team','Pass Att','Completions','Pass Yards','PTD','Int','Rate','Rush Att','Rushing Yards','AVG','RTD','FL','FPTS'],
+                'TE':['Rank','Team','Att','RYd','RAvg','RTD', 'Targ','Receptions','Receiving Yards','CAvg','CTd','FL','FPTS'],
+                'WR':['Rank','Team','Att','RYd','RAvg','RTD', 'Targ','Receptions','Receiving Yards','CAvg','CTd','FL','FPTS'],
+                'RB':['Rank','Team','Rush Att','Rush Yards','RAvg','RTD', 'Targ','Receptions','Receiving Yards','CAvg','CTd','FL','FPTS'] }
 
 # update based off where you live
 reg_str = 'US/Arizona'
@@ -72,11 +71,11 @@ class NFLWeek:
             self.byes.append(team['name'])
         
 class WeakD:
-    positions = ['QB','TE','WR', 'RB'] #  'TE','WR', 'RB'
-    headers = {'QB':['Rank','Team','PAtt','Cmp','PYd','PTD','Int','Rate','RAtt','RYd','AVG','RTD','FL','FPTS'],
-                'TE':['Rank','Team','Att','RYd','RAvg','RTD', 'Targ','Recpt','CYd','CAvg','CTd','FL','FPTS'],
-                'WR':['Rank','Team','Att','RYd','RAvg','RTD', 'Targ','Recpt','CYd','CAvg','CTd','FL','FPTS'],
-                'RB':['Rank','Team','Att','RYd','RAvg','RTD', 'Targ','Recpt','CYd','CAvg','CTd','FL','FPTS'] }
+    positions = ['QB','TE','WR', 'RB']
+    headers = {'QB':['Rank','Team','Pass Att','Completions','Pass Yards','PTD','Int','Rate','Rush Att','Rushing Yards','AVG','RTD','FL','FPTS'],
+                'TE':['Rank','Team','Att','RYd','RAvg','RTD', 'Targ','Receptions','Receiving Yards','CAvg','CTd','FL','FPTS'],
+                'WR':['Rank','Team','Att','RYd','RAvg','RTD', 'Targ','Receptions','Receiving Yards','CAvg','CTd','FL','FPTS'],
+                'RB':['Rank','Team','Rush Att','Rush Yards','RAvg','RTD', 'Targ','Receptions','Receiving Yards','CAvg','CTd','FL','FPTS'] }
     
     def __init__(self):
         self.schedule = NFLWeek()
@@ -91,7 +90,7 @@ class WeakD:
 
         # Parse the table rows
         rows = []
-        print(self.schedule.byes)
+        
         for tr in table.find_all('tr')[3:]:  # Skip the header rows
             col = []
             onBye = False
@@ -108,20 +107,62 @@ class WeakD:
             header = self.headers[pos]
             # skip the position if the stat is not available
             if stat not in header: 
-                print(f"Stat {stat} is not available for {pos}s.")
+
                 continue
-            print(f"Searching for stanky D versus {pos} {stat}...")
             stats = self.scrape(pos)
             df = pd.DataFrame(stats, columns=header)
             df.iloc[:,2:] = df.iloc[:,2:].apply(pd.to_numeric, errors='coerce')
             idx = header.index(stat)
             df.sort_values(by=df.columns[idx], inplace=True, ascending=False)
-            [print(i.split()[-1]) for i in df.iloc[:3,1]]  
-            print('')
+            bot3 = [i.split()[-1] for i in df.iloc[:3,1]]
+            return bot3
 
 def main():
+    print("Searching for Some Stank D...")
     weak = WeakD()
-    weak.weakVsStat('RTD')
+    schedule = weak.schedule.events
+    statsheet = pd.DataFrame(columns = ["Position","Stat","Defense"])
+    for pos in positions:
+        if pos == "QB":
+            stats = ('Pass Att','Completions','Pass Yards','Rush Att','Rush Yards')
+        elif pos == "RB":
+            stats == ('Rush Att','Rush Yards','Receptions','Receiving Yards')
+        else:
+            stats = ('Receptions','Receiving Yards')
+
+        
+        for stat in stats:
+            bot3 = weak.weakVsStat(stat)
+            for i in range(len(bot3)):
+                statsheet.loc[len(statsheet)] = [pos, stat, bot3[i]]
+    
+    matches = []
+    for game in schedule:
+        matches.append((game.away.split()[-1], game.home.split()[-1]))
+    opponents = []
+    for j in range(len(statsheet)):
+        defense = statsheet.iloc[j,2]
+        for m in range(len(matches)):
+            matchup = matches[m]
+            if defense in matchup:
+                if matchup[0] == defense:
+                    opponents.append(matchup[1])
+                elif matchup[1] == defense:
+                    opponents.append(matchup[0])
+            else:
+                continue
+    
+    statsheet["Opp"] = opponents
+    print(statsheet)
+    
+    
+    '''
+    csv_file = "NFL Bets.csv"
+    statsheet.to_csv(csv_file,index = False)
+    os.startfile(csv_file)
+    '''
+                
+    #weak.weakVsStat('PYd') 
     
     '''
     param = 'RYd'
