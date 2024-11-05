@@ -122,6 +122,8 @@ def main():
     weak = WeakD()
     schedule = weak.schedule.events
     statsheet = pd.DataFrame(columns = ["Position","Stat","Defense"])
+    
+    # Table all bad defenses, stats, and Positions
     for pos in positions:
         if pos == "QB":
             stats = ('Pass Att','Completions','Pass Yards','Rush Att','Rush Yards')
@@ -136,6 +138,7 @@ def main():
             for i in range(len(bot3)):
                 statsheet.loc[len(statsheet)] = [pos, stat, bot3[i]]
     
+    #Find All Matches
     matches = []
     for game in schedule:
         matches.append((game.away.split()[-1], game.home.split()[-1]))
@@ -152,17 +155,18 @@ def main():
             else:
                 continue
     
+    #Add All Matches to StatSheet
     statsheet["Opp"] = opponents
     print(statsheet)
     
+   
     
-    '''
     csv_file = "NFL Bets.csv"
     statsheet.to_csv(csv_file,index = False)
     os.startfile(csv_file)
-    '''
-                
-    #weak.weakVsStat('PYd') 
+    
+              
+ 
     
     '''
     param = 'RYd'
