@@ -7,6 +7,7 @@ import dataclasses
 import json
 from datetime import datetime
 import pytz
+import re
 
 positions = ['QB','TE','WR', 'RB']
 headers = {'QB':['Rank','Team','Pass Att','Completions','Pass Yards','PTD','Int','Rate','Rush Att','Rushing Yards','AVG','RTD','FL','FPTS'],
@@ -117,6 +118,59 @@ class WeakD:
             bot3 = [i.split()[-1] for i in df.iloc[:3,1]]
             return bot3
 
+
+def find_lineups():
+    lineup_url = "https://www.rotowire.com/football/lineups.php"
+    response = requests.get(lineup_url)
+    soup = BeautifulSoup(response.content, 'html.parser')
+
+    # Find all div elements with class 'lineup__box'
+    lineups = soup.find_all('div', class_='lineup__box')
+
+    return lineups
+
+def find_lineups():
+    lineup_url = "https://www.rotowire.com/football/lineups.php"
+    response = requests.get(lineup_url)
+    soup = BeautifulSoup(response.content, 'html.parser')
+    
+    # Get all lineup boxes
+    lineups = soup.find_all('div', class_='lineup__box')
+    return lineups
+
+def find_players(lineups, team):
+    team_players = []
+
+    for lineup in lineups:
+        # Get the matchup text
+        matchup = lineup.find('div', class_='lineup__matchup')
+        if matchup:
+            matchup_text = matchup.get_text(strip=True)
+            if team in matchup_text:
+                print(f'Players for {team}:\n')
+                
+                # Search both visiting and home team lists
+                for team_type in ['is-visit', 'is-home']:
+                    lineup_list = lineup.find('ul', class_=f'lineup__list {team_type}')
+                    print(lineup_list)
+                    if lineup_list:
+                        players = lineup_list.find_all('li', class_='lineup__player')
+                        
+                        # Extract only player names
+                        for player in players:
+                            name_tag = player.find('a')
+                            if name_tag:
+                                name = name_tag.get_text(strip=True)
+                                team_players.append(name)
+                
+                print("Players found:", team_players)
+                break  # Stop after finding the specified team's lineup
+
+    return team_players
+            
+
+
+
 def main():
     print("Searching for Some Stank D...")
     weak = WeakD()
@@ -157,15 +211,17 @@ def main():
     
     #Add All Matches to StatSheet
     statsheet["Opp"] = opponents
-    print(statsheet)
+    #print(statsheet)
     
-   
-    
+    lineups = find_lineups()
+    players = find_players(lineups, "Bengals")
+
+    '''
     csv_file = "NFL Bets.csv"
     statsheet.to_csv(csv_file,index = False)
     os.startfile(csv_file)
     
-              
+    '''          
  
     
     '''

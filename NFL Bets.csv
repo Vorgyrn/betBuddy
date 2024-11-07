@@ -1,0 +1,34 @@
+Position,Stat,Defense,Opp
+QB,Pass Att,Vikings,Jaguars
+QB,Pass Att,Lions,Texans
+QB,Pass Att,Ravens,Bengals
+QB,Completions,Buccaneers,49ers
+QB,Completions,Vikings,Jaguars
+QB,Completions,Ravens,Bengals
+QB,Pass Yards,Ravens,Bengals
+QB,Pass Yards,Jaguars,Vikings
+QB,Pass Yards,Buccaneers,49ers
+QB,Rush Att,Bengals,Ravens
+QB,Rush Att,Falcons,Saints
+QB,Rush Att,Cowboys,Eagles
+QB,Rush Yards,Panthers,Giants
+QB,Rush Yards,Patriots,Bears
+QB,Rush Yards,Colts,Bills
+TE,Receptions,Chiefs,Broncos
+TE,Receptions,Chargers,Titans
+TE,Receptions,Colts,Bills
+TE,Receiving Yards,Chiefs,Broncos
+TE,Receiving Yards,Buccaneers,49ers
+TE,Receiving Yards,Ravens,Bengals
+WR,Receptions,Chiefs,Broncos
+WR,Receptions,Chargers,Titans
+WR,Receptions,Colts,Bills
+WR,Receiving Yards,Chiefs,Broncos
+WR,Receiving Yards,Buccaneers,49ers
+WR,Receiving Yards,Ravens,Bengals
+RB,Receptions,Chiefs,Broncos
+RB,Receptions,Chargers,Titans
+RB,Receptions,Colts,Bills
+RB,Receiving Yards,Chiefs,Broncos
+RB,Receiving Yards,Buccaneers,49ers
+RB,Receiving Yards,Ravens,Bengals
