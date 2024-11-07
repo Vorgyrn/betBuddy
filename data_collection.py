@@ -137,16 +137,16 @@ def find_players(lineups, team,pos):
     
         if matchup:
             matchup_text = matchup.get_text(strip=True)
-            teams = re.findall(r'\b[A-Za-z]+\b(?=\()', matchup_text)
+            teams = re.findall(r'\b[A-Za-z0-9]+\b(?=\()', matchup_text)
             print(team)
             print(teams)
             if team in teams:
                 team_ind = teams.index(f'{team}')
                 print(team_ind)
                 if team_ind == 0:
-                    team_type = "is_visit"
+                    team_type = "is-visit"
                 elif team_ind ==1:
-                    team_type = "is_home"
+                    team_type = "is-home"
                 print(team_type)
                 # Search both visiting and home team lists
                 break
@@ -251,12 +251,12 @@ def main():
 
 
 #Test Change 
-    '''
+    
     csv_file = "NFL Bets.csv"
     statsheet.to_csv(csv_file,index = False)
     os.startfile(csv_file)
     
-    '''          
+           
  
     
     '''
