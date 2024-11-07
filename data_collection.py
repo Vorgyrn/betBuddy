@@ -9,11 +9,11 @@ from datetime import datetime
 import pytz
 import re
 
-positions = ['QB','TE','WR', 'RB']
+positions = ['QB','RB','WR','TE']
 headers = {'QB':['Rank','Team','Pass Att','Completions','Pass Yards','PTD','Int','Rate','Rush Att','Rushing Yards','AVG','RTD','FL','FPTS'],
-                'TE':['Rank','Team','Att','RYd','RAvg','RTD', 'Targ','Receptions','Receiving Yards','CAvg','CTd','FL','FPTS'],
-                'WR':['Rank','Team','Att','RYd','RAvg','RTD', 'Targ','Receptions','Receiving Yards','CAvg','CTd','FL','FPTS'],
-                'RB':['Rank','Team','Rush Att','Rush Yards','RAvg','RTD', 'Targ','Receptions','Receiving Yards','CAvg','CTd','FL','FPTS'] }
+           'RB':['Rank','Team','Rush Att','Rush Yards','RAvg','RTD', 'Targ','Receptions','Receiving Yards','CAvg','CTd','FL','FPTS'],
+           'WR':['Rank','Team','Att','RYd','RAvg','RTD', 'Targ','Receptions','Receiving Yards','CAvg','CTd','FL','FPTS'],
+           'TE':['Rank','Team','Att','RYd','RAvg','RTD', 'Targ','Receptions','Receiving Yards','CAvg','CTd','FL','FPTS']}
 
 # update based off where you live
 reg_str = 'US/Arizona'
@@ -72,11 +72,11 @@ class NFLWeek:
             self.byes.append(team['name'])
         
 class WeakD:
-    positions = ['QB','TE','WR', 'RB']
+    positions = ['QB','RB','WR','TE']
     headers = {'QB':['Rank','Team','Pass Att','Completions','Pass Yards','PTD','Int','Rate','Rush Att','Rushing Yards','AVG','RTD','FL','FPTS'],
-                'TE':['Rank','Team','Att','RYd','RAvg','RTD', 'Targ','Receptions','Receiving Yards','CAvg','CTd','FL','FPTS'],
+               'RB':['Rank','Team','Rush Att','Rush Yards','RAvg','RTD', 'Targ','Receptions','Receiving Yards','CAvg','CTd','FL','FPTS'],
                 'WR':['Rank','Team','Att','RYd','RAvg','RTD', 'Targ','Receptions','Receiving Yards','CAvg','CTd','FL','FPTS'],
-                'RB':['Rank','Team','Rush Att','Rush Yards','RAvg','RTD', 'Targ','Receptions','Receiving Yards','CAvg','CTd','FL','FPTS'] }
+                'TE':['Rank','Team','Att','RYd','RAvg','RTD', 'Targ','Receptions','Receiving Yards','CAvg','CTd','FL','FPTS']}
     
     def __init__(self):
         self.schedule = NFLWeek()
@@ -123,71 +123,89 @@ def find_lineups():
     lineup_url = "https://www.rotowire.com/football/lineups.php"
     response = requests.get(lineup_url)
     soup = BeautifulSoup(response.content, 'html.parser')
-
-    # Find all div elements with class 'lineup__box'
-    lineups = soup.find_all('div', class_='lineup__box')
-
-    return lineups
-
-def find_lineups():
-    lineup_url = "https://www.rotowire.com/football/lineups.php"
-    response = requests.get(lineup_url)
-    soup = BeautifulSoup(response.content, 'html.parser')
     
     # Get all lineup boxes
     lineups = soup.find_all('div', class_='lineup__box')
     return lineups
 
-def find_players(lineups, team):
+def find_players(lineups, team,pos):
     team_players = []
-
+ 
     for lineup in lineups:
         # Get the matchup text
         matchup = lineup.find('div', class_='lineup__matchup')
+    
         if matchup:
             matchup_text = matchup.get_text(strip=True)
-            if team in matchup_text:
-                print(f'Players for {team}:\n')
-                
+            teams = re.findall(r'\b[A-Za-z]+\b(?=\()', matchup_text)
+            print(team)
+            print(teams)
+            if team in teams:
+                team_ind = teams.index(f'{team}')
+                print(team_ind)
+                if team_ind == 0:
+                    team_type = "is_visit"
+                elif team_ind ==1:
+                    team_type = "is_home"
+                print(team_type)
                 # Search both visiting and home team lists
-                for team_type in ['is-visit', 'is-home']:
-                    lineup_list = lineup.find('ul', class_=f'lineup__list {team_type}')
-                    print(lineup_list)
-                    if lineup_list:
-                        players = lineup_list.find_all('li', class_='lineup__player')
-                        
-                        # Extract only player names
-                        for player in players:
-                            name_tag = player.find('a')
-                            if name_tag:
-                                name = name_tag.get_text(strip=True)
-                                team_players.append(name)
-                
-                print("Players found:", team_players)
-                break  # Stop after finding the specified team's lineup
-
-    return team_players
+                break
+        else:
+            print("No Matchup")
+    lineup_list = lineup.find('ul', class_=f'lineup__list {team_type}')
+    
+    if lineup_list:
+        players = lineup_list.find_all('li', class_='lineup__player')
+        
+        # Extract only player names
+        for player in players:
+            name_tag = player.find('a')
+            if name_tag:
+                name = name_tag.get_text(strip=True)
+                team_players.append(name)
+        print(team_players)
+        if team_ind == 0:
+            if pos == "QB":
+                return team_players[0]
+            elif pos == "RB":
+                return team_players[1]
+            elif pos == "WR":
+                return team_players[2]
+            elif pos == "TE":
+                return team_players[5]
+        elif team_ind ==1:
+            if pos == "QB":
+                return team_players[0]
+            elif pos == "RB":
+                return team_players[1]
+            elif pos == "WR":
+                return team_players[2]
+            elif pos == "TE":
+                return team_players[5]
+    
+    
             
 
 
+            
+           
+                
+               
 
-def main():
-    print("Searching for Some Stank D...")
-    weak = WeakD()
-    schedule = weak.schedule.events
+            
+def fill_df(weak,schedule):
     statsheet = pd.DataFrame(columns = ["Position","Stat","Defense"])
-    
     # Table all bad defenses, stats, and Positions
     for pos in positions:
         if pos == "QB":
             stats = ('Pass Att','Completions','Pass Yards','Rush Att','Rush Yards')
         elif pos == "RB":
-            stats == ('Rush Att','Rush Yards','Receptions','Receiving Yards')
+            stats = ('Rush Att','Rush Yards','Receptions','Receiving Yards')
         else:
             stats = ('Receptions','Receiving Yards')
 
         
-        for stat in stats:
+        for stat in stats:            
             bot3 = weak.weakVsStat(stat)
             for i in range(len(bot3)):
                 statsheet.loc[len(statsheet)] = [pos, stat, bot3[i]]
@@ -211,10 +229,25 @@ def main():
     
     #Add All Matches to StatSheet
     statsheet["Opp"] = opponents
-    #print(statsheet)
-    
+    return statsheet
+
+
+def main():
+    print("Searching for Some Stank D...")
+    weak = WeakD()
+    schedule = weak.schedule.events
+    statsheet = fill_df(weak,schedule)
     lineups = find_lineups()
-    players = find_players(lineups, "Bengals")
+    all_players = []
+    for i in range(len(statsheet)):
+        team = statsheet.iloc[i,3]
+        print(team)
+        pos = statsheet.iloc[i,0]
+        players = find_players(lineups, team, pos)
+        all_players.append(players)
+    statsheet['Players'] = all_players
+    print(statsheet)
+
 
 
 #Test Change 
