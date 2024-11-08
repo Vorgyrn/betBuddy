@@ -54,6 +54,9 @@ def find_d_stats(positions,headers):
     return position_dataframes
         
 def sort_bad_d(positions,headers,stats,active_teams,d_stats):
+    pos_list = []
+    stat_list = []
+    defense_list = []
     for pos in positions:
         data = d_stats[f'{pos}']
         data.iloc[:,1:] = data.iloc[:,1:].apply(pd.to_numeric, errors='coerce')
@@ -62,18 +65,23 @@ def sort_bad_d(positions,headers,stats,active_teams,d_stats):
             data.sort_values(by=data.columns[idx], inplace=True, ascending=False)
             for i in range(3):
                 if data.iloc[i,0] in active_teams:
-                    print(data.iloc[i,0])
+                    pos_list.append(pos)
+                    stat_list.append(stat)
+                    defense_list.append(data.iloc[i,0])
+    boi = list(zip(pos_list,stat_list,defense_list))
+    boi = pd.DataFrame(boi, columns = ["POS","STAT","DEFENSE"]) #BOI - Bets of Interest
+    return boi
 
 
 
 def main():
     positions = ["PG", "SG","SF","PF","C"]
-    stats =  ["PTS"]
+    stats =  ["PTS","REB","AST"]
     headers = ["TEAM","GP","PTS","REB","AST","3PM","STL","BLK","TO","FD PTS"]
     active_teams= find_matchups()
     d_stats = find_d_stats(positions,headers)
-    bets_of_interest = sort_bad_d(positions,headers,stats,active_teams,d_stats)
-    
+    boi = sort_bad_d(positions,headers,stats,active_teams,d_stats)
+    print(boi)
 
 if __name__ == "__main__":
     main()
