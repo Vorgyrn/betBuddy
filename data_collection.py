@@ -77,7 +77,7 @@ class WeakD:
                 'TE':['Rank','Team','Att','RYd','RAvg','RTD', 'Targ','Recpt','CYd','CAvg','CTd','FL','FPTS'],
                 'WR':['Rank','Team','Att','RYd','RAvg','RTD', 'Targ','Recpt','CYd','CAvg','CTd','FL','FPTS'],
                 'RB':['Rank','Team','Att','RYd','RAvg','RTD', 'Targ','Recpt','CYd','CAvg','CTd','FL','FPTS'] }
-    
+    weakest = {}
     def __init__(self):
         self.schedule = NFLWeek()
     
@@ -91,12 +91,11 @@ class WeakD:
 
         # Parse the table rows
         rows = []
-        print(self.schedule.byes)
         for tr in table.find_all('tr')[3:]:  # Skip the header rows
             col = []
             onBye = False
             for i, td in enumerate(tr.find_all('td')):
-                if i == 1 and td.text.split()[-1] in self.schedule.byes: onBye = True
+                if i == 1 and td.text.split()[-1] in self.schedule.byes: onBye = True; continue
                 col.append(td.text)
             # if team on bye dont append
             if not onBye: rows.append(col)
