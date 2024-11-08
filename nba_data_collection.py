@@ -10,7 +10,7 @@ import pytz
 import re
 
 def find_game_data():
-    
+    print('Loading Schedule...')
     url_teams_lineups = "https://www.rotowire.com/basketball/nba-lineups.php"
     response = requests.get(url_teams_lineups)
     soup = BeautifulSoup(response.content, 'html.parser')
@@ -35,7 +35,7 @@ def find_matchups(lineups):
     return active_teams, matches
 
 def find_d_stats(positions,headers):
-    
+    print('Loading Weak Defenses...')
     url_defense = "https://www.fantasypros.com/daily-fantasy/nba/fanduel-defense-vs-position.php"
     response = requests.get(url_defense)
     soup = BeautifulSoup(response.content, 'html.parser')
@@ -95,6 +95,7 @@ def fill_opps(boi3,matches):
     return boi4
             
 def fill_players(boi4,lineups):
+    print('Loading Opposing Players...')
     opp_player_list = []
     for i in range(len(boi4)):
         team_players = []
@@ -128,7 +129,7 @@ def fill_players(boi4,lineups):
             for player in players:
                 name_tag = player.find('a')
                 if name_tag:
-                    name = name_tag.get_text(strip=True)
+                    name = name_tag.get('title',name_tag.get_text(strip=True))
                     team_players.append(name)
         if boi4.iloc[i,0] == "PG":
             opp_player_list.append(team_players[0])
@@ -144,6 +145,46 @@ def fill_players(boi4,lineups):
     boi5 = boi4
     return boi5
 
+def get_player_avg(boi5,n):
+    headers = ["Name","Date","TEAM"," ","OPP","MIN","PTS","REB","AST","STL","BLK","FGM","FGA","FG%","3PM","3PA","3P%","FTM","FTA","FT%","TS%","OREB","DREB","TOV","PF","+/-"]
+    stats = []
+    player_stats = {}
+    for i in range(len(boi5)):
+        all_data = []
+        player = boi5.iloc[i,4]
+       
+        player_names = player.split()
+        stat = boi5.iloc[i,1]
+        print(f'Loading {stat} Data for {player}...')
+        if len(player_names) == 2:
+            player_url = f"https://www.statmuse.com/nba/ask/{player_names[0]}-{player_names[1]}-last-{n}-games"
+            response = requests.get(player_url)
+            soup = BeautifulSoup(response.content, 'html.parser')
+            rows = soup.find_all('tr')
+            n_rows = rows[1:n+3]
+            for row in n_rows:
+                cells = row.find_all('td')
+                row_data = [cell.get_text(strip=True) for cell in cells]
+                all_data.append(row_data)
+            if len(all_data) == 12:
+                player_df = pd.DataFrame(all_data)
+                player_df = player_df.iloc[:,2:]
+                for j in range(n):
+                    player_name = player_df.iloc[j,0].split()
+                    player_name_full = player_name[0] + ' ' + player_name[2]
+                    player_df.iloc[j,0] = player_name_full
+                player_df.columns = headers
+                player_stats[player] = player_df
+                print(player_stats[f'{player_name_full}'])
+            else:
+                print("Not Enough Player Data")
+        else:
+            print(player_names, 'is an unknown format')
+
+        
+
+
+        
 def main():
     positions = ["PG", "SG","SF","PF","C"]
     stats =  ["PTS","REB","AST"]
@@ -155,6 +196,8 @@ def main():
     boi4 = fill_opps(boi3,matches)
     boi5 = fill_players(boi4,lineups)
     print(boi5)
+    n = 10
+    data = get_player_avg(boi5,n)
     
 
 
