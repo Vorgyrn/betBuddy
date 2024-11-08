@@ -1,34 +1,40 @@
-Position,Stat,Defense,Opp
-QB,Pass Att,Vikings,Jaguars
-QB,Pass Att,Lions,Texans
-QB,Pass Att,Ravens,Bengals
-QB,Completions,Buccaneers,49ers
-QB,Completions,Vikings,Jaguars
-QB,Completions,Ravens,Bengals
-QB,Pass Yards,Ravens,Bengals
-QB,Pass Yards,Jaguars,Vikings
-QB,Pass Yards,Buccaneers,49ers
-QB,Rush Att,Bengals,Ravens
-QB,Rush Att,Falcons,Saints
-QB,Rush Att,Cowboys,Eagles
-QB,Rush Yards,Panthers,Giants
-QB,Rush Yards,Patriots,Bears
-QB,Rush Yards,Colts,Bills
-TE,Receptions,Chiefs,Broncos
-TE,Receptions,Chargers,Titans
-TE,Receptions,Colts,Bills
-TE,Receiving Yards,Chiefs,Broncos
-TE,Receiving Yards,Buccaneers,49ers
-TE,Receiving Yards,Ravens,Bengals
-WR,Receptions,Chiefs,Broncos
-WR,Receptions,Chargers,Titans
-WR,Receptions,Colts,Bills
-WR,Receiving Yards,Chiefs,Broncos
-WR,Receiving Yards,Buccaneers,49ers
-WR,Receiving Yards,Ravens,Bengals
-RB,Receptions,Chiefs,Broncos
-RB,Receptions,Chargers,Titans
-RB,Receptions,Colts,Bills
-RB,Receiving Yards,Chiefs,Broncos
-RB,Receiving Yards,Buccaneers,49ers
-RB,Receiving Yards,Ravens,Bengals
+Position,Stat,Defense,Opp,Players
+QB,Pass Att,Vikings,Jaguars,T. Lawrence
+QB,Pass Att,Lions,Texans,C.J. Stroud
+QB,Pass Att,Ravens,Bengals,Joe Burrow
+QB,Completions,Buccaneers,49ers,Brock Purdy
+QB,Completions,Vikings,Jaguars,T. Lawrence
+QB,Completions,Ravens,Bengals,Joe Burrow
+QB,Pass Yards,Ravens,Bengals,Joe Burrow
+QB,Pass Yards,Jaguars,Vikings,Sam Darnold
+QB,Pass Yards,Buccaneers,49ers,Brock Purdy
+QB,Rush Att,Bengals,Ravens,L. Jackson
+QB,Rush Att,Falcons,Saints,Derek Carr
+QB,Rush Att,Cowboys,Eagles,Jalen Hurts
+QB,Rush Yards,Panthers,Giants,Daniel Jones
+QB,Rush Yards,Patriots,Bears,C. Williams
+QB,Rush Yards,Colts,Bills,Josh Allen
+RB,Rush Att,Bengals,Ravens,D. Henry
+RB,Rush Att,Falcons,Saints,Alvin Kamara
+RB,Rush Att,Cowboys,Eagles,S. Barkley
+RB,Rush Yards,Panthers,Giants,Tyrone Tracy
+RB,Rush Yards,Patriots,Bears,D. Swift
+RB,Rush Yards,Colts,Bills,James Cook
+RB,Receptions,Bills,Colts,J. Taylor
+RB,Receptions,Jaguars,Vikings,Aaron Jones
+RB,Receptions,Buccaneers,49ers,Jordan Mason
+RB,Receiving Yards,Bills,Colts,J. Taylor
+RB,Receiving Yards,Buccaneers,49ers,Jordan Mason
+RB,Receiving Yards,Jaguars,Vikings,Aaron Jones
+WR,Receptions,Bills,Colts,M. Pittman
+WR,Receptions,Jaguars,Vikings,J. Jefferson
+WR,Receptions,Buccaneers,49ers,Deebo Samuel
+WR,Receiving Yards,Bills,Colts,M. Pittman
+WR,Receiving Yards,Buccaneers,49ers,Deebo Samuel
+WR,Receiving Yards,Jaguars,Vikings,J. Jefferson
+TE,Receptions,Bills,Colts,Mo Alie-Cox
+TE,Receptions,Jaguars,Vikings,T. Hockenson
+TE,Receptions,Buccaneers,49ers,G. Kittle
+TE,Receiving Yards,Bills,Colts,Mo Alie-Cox
+TE,Receiving Yards,Buccaneers,49ers,G. Kittle
+TE,Receiving Yards,Jaguars,Vikings,T. Hockenson
