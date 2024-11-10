@@ -8,6 +8,7 @@ import json
 from datetime import datetime
 import pytz
 import re
+import numpy as np
 
 def find_game_data():
     print('Loading Schedule...')
@@ -152,37 +153,63 @@ def get_player_avg(boi5,n):
     for i in range(len(boi5)):
         all_data = []
         player = boi5.iloc[i,4]
-       
+        player = re.sub(r'[éèêë]', 'e', player)
+        player = re.sub(r'[áàâäã]', 'a', player)
+        player = re.sub(r'[íìîï]', 'i', player)
+        player = re.sub(r'[óòôöõ]', 'o', player)
+        player = re.sub(r'[úùûü]', 'u', player)
+        player = re.sub(r'[ç]', 'c', player)
         player_names = player.split()
         stat = boi5.iloc[i,1]
         print(f'Loading {stat} Data for {player}...')
         if len(player_names) == 2:
-            player_url = f"https://www.statmuse.com/nba/ask/{player_names[0]}-{player_names[1]}-last-{n}-games"
-            response = requests.get(player_url)
-            soup = BeautifulSoup(response.content, 'html.parser')
-            rows = soup.find_all('tr')
-            n_rows = rows[1:n+3]
-            for row in n_rows:
-                cells = row.find_all('td')
-                row_data = [cell.get_text(strip=True) for cell in cells]
-                all_data.append(row_data)
-            if len(all_data) == 12:
-                player_df = pd.DataFrame(all_data)
-                player_df = player_df.iloc[:,2:]
-                for j in range(n):
-                    player_name = player_df.iloc[j,0].split()
-                    player_name_full = player_name[0] + ' ' + player_name[2]
-                    player_df.iloc[j,0] = player_name_full
-                player_df.columns = headers
-                player_stats[player] = player_df
-                print(player_stats[f'{player_name_full}'])
-            else:
-                print("Not Enough Player Data")
+            player_url = f"https://www.statmuse.com/nba/ask/{player_names[0].lower()}-{player_names[1].lower()}-last-{n}-games"
+        elif len(player_names) == 3:
+            player_url = f"https://www.statmuse.com/nba/ask/{player_names[0].lower()}-{player_names[1].lower()}-{player_names[2].lower()}-last-{n}-games"
         else:
-            print(player_names, 'is an unknown format')
+            print(player, 'is an unknown format')
 
-        
+        response = requests.get(player_url)
+        soup = BeautifulSoup(response.content, 'html.parser')
+        rows = soup.find_all('tr')
+        n_rows = rows[1:n+3]
+        for row in n_rows:
+            cells = row.find_all('td')
+            row_data = [cell.get_text(strip=True) for cell in cells]
+            all_data.append(row_data)
+        if len(all_data) == n+2:
+            player_df = pd.DataFrame(all_data)
+            player_df = player_df.iloc[:,2:]
+            for j in range(n):
+                player_df.iloc[j,0] = player
+            player_df.columns = headers
+            player_stats[player] = player_df
+            
+        else:
+            print("Not Enough Player Data")
 
+    return player_stats
+
+def fill_stats(boi5,player_stats,n):
+    stat_avg_list = []
+    for i in range(len(boi5)):
+        player = boi5.iloc[i,4]
+        stat = boi5.iloc[i,1]
+        df = player_stats[player]
+        df.replace("None",np.nan, inplace=True)
+        df.dropna(inplace=True)
+        z = len(df)-2
+        if stat == "PTS":
+            fill_stat = df.iloc[z,6]
+        elif stat == "REB":
+            fill_stat = df.iloc[z,7]
+        elif stat == "AST":
+            fill_stat = df.iloc[z,8]
+        stat_avg_list.append(fill_stat)
+
+    boi5["SZN AVG"] = stat_avg_list
+    boi6 = boi5
+    return boi6
 
         
 def main():
@@ -195,9 +222,14 @@ def main():
     boi3 = sort_bad_d(positions,headers,stats,active_teams,d_stats)
     boi4 = fill_opps(boi3,matches)
     boi5 = fill_players(boi4,lineups)
-    print(boi5)
     n = 10
-    data = get_player_avg(boi5,n)
+    player_stats = get_player_avg(boi5,n)
+    boi6 = fill_stats(boi5,player_stats,n)
+    print(boi6)
+
+    """csv_file = "NBA Bets.csv"
+    boi6.to_csv(csv_file,index = False)
+    os.startfile(csv_file)"""
     
 
 
