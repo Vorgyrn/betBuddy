@@ -7,6 +7,15 @@ import numpy as np
 from matplotlib.figure import Figure 
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 
+def build_colors(data_series, line=0):
+    red='red'
+    green='green'
+    colors = []
+    for i in data_series:
+        if i < line: colors.append(red)
+        else: colors.append(green)
+        
+    return colors
 
 def find_player_stats():
     player_name = entry.get()  # Get the text from the entry widget
@@ -43,10 +52,6 @@ def find_player_stats():
     root.destroy()  # Close the tkinter window
     open_new_window(df)  # Open the new blank window
     
-
-
-
-
 def open_new_window(df):
     new_root = tk.Tk()
     new_root.title("Player Performance")
@@ -111,30 +116,50 @@ def open_new_window(df):
     )
     label_ast.grid(row=3, column=0, sticky="w", pady=5, padx=xpad)
     
-    add_plots(new_root, df)
+    # this whole section really should be its own class that accepts the df and can handle the graphs
+    # for now im jsut making what it looks like. will create a class later. The num games thing wont work rn
+    box = tk.Frame(new_root)
+    box.pack(fill='x')
+    gameLbl = tk.Label(
+        box, 
+        text="Games Select:", 
+        font=("Helvetica", 12), 
+        padx=25,       # Padding inside the box
+        pady=5,       # Padding inside the box
+        width=8,      # Set a fixed width for all boxes
+        height=2       # Set a fixed height for all boxes
+    ) 
+    gameLbl.grid(row=0, column=0, pady=5, padx=20)
+    for i in range(5,30,5):
+        btn = tk.Button(box, text=str(i), bg="#E0E0E0", fg="#333333", relief="flat", padx=10, pady=5, width=8, height=2)
+        btn.grid(row=0, column=i//5, pady=5, padx=20)
+
+    stat_plots = add_plots(new_root, df) # link these plot objects to a button command that swaps to different num of games
     # Start the main loop for the new window
     new_root.mainloop()
 
 def add_plots(root, df):
     tabControl = ttk.Notebook(root) 
-    
     stat_tabs = ['Points', 'Assists', 'Rebounds']
     stats = ['PTS', 'REB', 'AST']
-    
+    stat_plots = []
     for i in range(len(stats)):
-        
         fig = Figure(figsize = (10,9), dpi = 100) 
         stat_plot = ttk.Frame(tabControl) 
         tabControl.add(stat_plot, text=stat_tabs[i])
         tabControl.pack(expand = 1, fill ="both") 
         # adding the subplot 
-        pp = fig.add_subplot()  
-    
+        pp = fig.add_subplot(111)  
+        
         stat_series = df[stats[i]]
+        avg = stat_series.mean()
+        colors = build_colors(stat_series, avg)
+
         names = range(1,len(stat_series)+1)
         # plotting the graph 
-        pp.bar(names, stat_series) 
+        pp.bar(names, stat_series, color=colors) 
         pp.set_ylabel(stat_tabs[i], fontsize=10)
+        pp.axhline(avg, color='black', ls='dotted')
   
         # creating the Tkinter canvas 
         # containing the Matplotlib figure 
@@ -143,6 +168,9 @@ def add_plots(root, df):
     
         # placing the canvas on the Tkinter window 
         canvas.get_tk_widget().pack() 
+        stat_plots.append(pp)
+        
+    return stat_plots
     
 # Create the main window
 root = tk.Tk()
