@@ -1,8 +1,11 @@
 import tkinter as tk
+from tkinter import ttk 
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 import numpy as np
+from matplotlib.figure import Figure 
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 
 
 def find_player_stats():
@@ -23,7 +26,7 @@ def find_player_stats():
     table = soup.find('table')  # Example: table class
 
     # Extract table headers (column names)
-    headers = [th.get_text() for th in table.find_all('th')]
+    headers = [th.get_text().strip() for th in table.find_all('th')]
     # Extract table rows (data for each game)
     rows = []
     for tr in table.find_all('tr')[1:]:  # Skip the header row
@@ -107,11 +110,40 @@ def open_new_window(df):
         height=2       # Set a fixed height for all boxes
     )
     label_ast.grid(row=3, column=0, sticky="w", pady=5, padx=xpad)
-
+    
+    add_plots(new_root, df)
     # Start the main loop for the new window
     new_root.mainloop()
 
-
+def add_plots(root, df):
+    tabControl = ttk.Notebook(root) 
+    
+    stat_tabs = ['Points', 'Assists', 'Rebounds']
+    stats = ['PTS', 'REB', 'AST']
+    
+    for i in range(len(stats)):
+        
+        fig = Figure(figsize = (10,9), dpi = 100) 
+        stat_plot = ttk.Frame(tabControl) 
+        tabControl.add(stat_plot, text=stat_tabs[i])
+        tabControl.pack(expand = 1, fill ="both") 
+        # adding the subplot 
+        pp = fig.add_subplot()  
+    
+        stat_series = df[stats[i]]
+        names = range(1,len(stat_series)+1)
+        # plotting the graph 
+        pp.bar(names, stat_series) 
+        pp.set_ylabel(stat_tabs[i], fontsize=10)
+  
+        # creating the Tkinter canvas 
+        # containing the Matplotlib figure 
+        canvas = FigureCanvasTkAgg(fig, master=stat_plot)   
+        canvas.draw() 
+    
+        # placing the canvas on the Tkinter window 
+        canvas.get_tk_widget().pack() 
+    
 # Create the main window
 root = tk.Tk()
 root.title("Player Search")
