@@ -83,7 +83,7 @@ class PlayerStatsApp:
         self.root.withdraw()
         new_root = tk.Toplevel(self.root)
         new_root.title("Player Performance")
-        new_root.geometry("800x850")
+        new_root.geometry("1000x700")
 
         # Bind the second window's close event to a custom function
         new_root.protocol("WM_DELETE_WINDOW", self.close_application)
