@@ -4,6 +4,9 @@ from bs4 import BeautifulSoup
 import pandas as pd
 import numpy as np
 import os
+import sys
+import tkinter as tk
+from tkinter import simpledialog
 
 # Dictionary for full team name to abbreviation
 team_name_to_abbr = {
@@ -42,6 +45,39 @@ team_name_to_abbr = {
 # Dictionary for abbreviation to full team name
 abbr_to_team_name = {abbreviation: team for team, abbreviation in team_name_to_abbr.items()}
 
+def get_player_name():
+     # Create a simple Tkinter root window (hidden)
+    root = tk.Tk()
+    root.withdraw()  # Hide the main window
+
+    # Create a dialog box to prompt for player name
+    player_name = simpledialog.askstring("Player Search", "Enter NBA Player Name:")
+
+    # Handle the user input
+    if player_name:
+        print(f"Player selected: {player_name}")
+        return player_name
+    else:
+        print("No player name entered. Exiting...")
+        return None
+    
+def check_file_existence(player):
+    # Convert player name to lowercase and construct the file name
+    file_name = f"{player.lower()} NBA Game Log.csv"
+    
+    # Check if the file exists in the current directory
+    if os.path.exists(file_name):
+        # Prompt the user for confirmation
+        response = input(f"The file '{file_name}' already exists. Are you sure you want to overwrite it? (Y/N): ").strip().lower()
+        if response == 'y':
+            print("Proceeding to overwrite the file...")
+            return True  # Allow the program to continue
+        else:
+            print("Terminating the program to avoid overwriting the file.")
+            sys.exit(0)  # Terminate the program
+    else:
+        print(f"No existing file named '{file_name}' found. Proceeding to create a new file.")
+        return True  # Allow the program to continue
 # Function to get abbreviation from full team name
 def get_abbreviation(team_name):
     return team_name_to_abbr.get(team_name, "Team not found")
@@ -132,7 +168,21 @@ def get_def_stats(clean_df):
     pts_l3_game_def = []
     for i in range(len(clean_df)):
         date = clean_df.iloc[i,1].split('/')
-        print(f"Getting Data from Game {date[0]}-{date[1]}-{date[2]}")
+        os.system('cls')
+        # Calculate progress ratio and how many bars to show
+        progress_ratio = i / len(clean_df)
+        progress_bar_length = 100  # Number of bars (|) to show
+        
+        # Calculate number of bars based on progress
+        num_bars = int(progress_ratio * progress_bar_length)
+        
+        # Print the progress bar
+        print(100 * "-")
+        print("|" * num_bars + " " * (progress_bar_length - num_bars))  # Display bars
+        print(100 * "-")
+        
+        # Print current progress in text
+        print(f"Getting Data from Game {i} of {len(clean_df)}\r")
         url = f"https://www.teamrankings.com/nba/stat/opponent-points-per-game?date={date[2]}-{date[0]}-{date[1]}"
         response = requests.get(url)
         soup = BeautifulSoup(response.content, 'html.parser')
@@ -153,7 +203,8 @@ def get_def_stats(clean_df):
 
 def main():
     #Choose player
-    player = "LeBron James"
+    player = get_player_name()
+    check_file_existence(player)
     df_all_games = get_game_logs(player)
     df_w_pts_trend = pts_trend_col(df_all_games)
     df_w_reb_trend = reb_trend_col(df_w_pts_trend)
@@ -161,8 +212,7 @@ def main():
     clean_df = clean_team_name(player_game_logs)
     
     def_log = get_def_stats(clean_df)
-    print(def_log)
-    csv_file = f"{player} NBA Game Log.csv"
+    csv_file = f"{player.lower()} NBA Game Log.csv"
     def_log.to_csv(csv_file,index = False)
     os.startfile(csv_file)
 
