@@ -1,220 +1,184 @@
 import tkinter as tk
-from tkinter import ttk 
+from tkinter import ttk, messagebox
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 import numpy as np
-from matplotlib.figure import Figure 
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
-def build_colors(data_series, line=0):
-    red='red'
-    green='green'
-    colors = []
-    for i in data_series:
-        if i < line: colors.append(red)
-        else: colors.append(green)
+class PlayerStatsApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Player Search")
+        self.root.geometry("400x150")
+        self.root.configure(bg="#F0F0F0")
+
+        # Bind the window close event to a custom function
+        self.root.protocol("WM_DELETE_WINDOW", self.close_application)
         
-    return colors
+        self.create_main_ui()
 
-def find_player_stats():
-    player_name = entry.get()  # Get the text from the entry widget
-    player = player_name.split()
-    
-    # Check if there are exactly two names provided (first and last)
-    if len(player) == 2:
-        # Format URL with player's first and last name in lowercase
-        url = f"https://www.statmuse.com/nba/ask/{player[0].lower()}-{player[1].lower()}-last-25-games"
-    else: 
-        print("Name in unexpected format")  
-    # Send the request and get the page content
-    response = requests.get(url)
-    # Parse the page content with BeautifulSoup
-    soup = BeautifulSoup(response.content, 'html.parser')
-    # Find the table in the page (assuming the table has a specific class or id)
-    table = soup.find('table')  # Example: table class
-
-    # Extract table headers (column names)
-    headers = [th.get_text().strip() for th in table.find_all('th')]
-    # Extract table rows (data for each game)
-    rows = []
-    for tr in table.find_all('tr')[1:]:  # Skip the header row
-        td = tr.find_all('td')
-        row = [cell.get_text().strip() for cell in td]
-        rows.append(row)
-    # Convert to DataFrame
-    df = pd.DataFrame(rows, columns = headers)
-    games_total = len(df)
-    df = df.iloc[:games_total-2,2:]
-    df.iloc[:,0] = df.iloc[0,0].split()[0] +' ' + df.iloc[0,0].split()[1]
-    df.iloc[:, 5:] = df.iloc[:, 5:].apply(pd.to_numeric, errors='coerce')
-    print(df)
-    root.destroy()  # Close the tkinter window
-    open_new_window(df)  # Open the new blank window
-    
-def open_new_window(df):
-    new_root = tk.Tk()
-    new_root.title("Player Performance")
-    new_root.geometry("800x800")
-
-    # Create a frame to hold the content
-    frame = tk.Frame(new_root)
-    frame.pack(anchor="nw", padx=20, pady=20)
-
-    # Add a label to the new window to verify it's opening
-    title_label = tk.Label(frame, text="Averages over Last 25 Games:", font=("Helvetica", 12, "bold"))
-    title_label.grid(row=0, column=0, sticky="w", pady=5, padx=5)
-
-    #Choose padx for all 
-    xpad = 50
-    # Calculate averages for each column
-    avg_pts_25 = np.mean(df.iloc[:, 6])
-    label_pts = tk.Label(
-        frame, 
-        text=f"Points: {avg_pts_25:.2f}", 
-        font=("Helvetica", 12), 
-        bg="gray",  # Gray background for the box
-        fg="white",    # White text color
-        padx=25,       # Padding inside the box
-        pady=5,       # Padding inside the box
-        relief="solid", # Border around the box
-        bd=2,          # Border width
-        width=8,      # Set a fixed width for all boxes
-        height=2       # Set a fixed height for all boxes
-    )
-    label_pts.grid(row=1, column=0, sticky="w", pady=5, padx=xpad)
-
-    avg_reb_25 = np.mean(df.iloc[:, 7])
-    label_reb = tk.Label(
-        frame, 
-        text=f"Rebounds: {avg_reb_25:.2f}", 
-        font=("Helvetica", 12), 
-        bg="gray",  # Gray background for the box
-        fg="white",    # White text color
-        padx=25,       # Padding inside the box
-        pady=5,       # Padding inside the box
-        relief="solid", # Border around the box
-        bd=2,          # Border width
-        width=8,      # Set a fixed width for all boxes
-        height=2       # Set a fixed height for all boxes
-    )
-    label_reb.grid(row=2, column=0, sticky="w", pady=5, padx=xpad)
-
-    avg_ast_25 = np.mean(df.iloc[:, 8])
-    label_ast = tk.Label(
-        frame, 
-        text=f"Assists: {avg_ast_25:.2f}", 
-        font=("Helvetica", 12), 
-        bg="gray",  # Gray background for the box
-        fg="white",    # White text color
-        padx=25,       # Padding inside the box
-        pady=5,       # Padding inside the box
-        relief="solid", # Border around the box
-        bd=2,          # Border width
-        width=8,      # Set a fixed width for all boxes
-        height=2       # Set a fixed height for all boxes
-    )
-    label_ast.grid(row=3, column=0, sticky="w", pady=5, padx=xpad)
-    
-    # this whole section really should be its own class that accepts the df and can handle the graphs
-    # for now im jsut making what it looks like. will create a class later. The num games thing wont work rn
-    box = tk.Frame(new_root)
-    box.pack(fill='x')
-    gameLbl = tk.Label(
-        box, 
-        text="Games Select:", 
-        font=("Helvetica", 12), 
-        padx=25,       # Padding inside the box
-        pady=5,       # Padding inside the box
-        width=8,      # Set a fixed width for all boxes
-        height=2       # Set a fixed height for all boxes
-    ) 
-    gameLbl.grid(row=0, column=0, pady=5, padx=20)
-    for i in range(5,30,5):
-        btn = tk.Button(box, text=str(i), bg="#E0E0E0", fg="#333333", relief="flat", padx=10, pady=5, width=8, height=2)
-        btn.grid(row=0, column=i//5, pady=5, padx=20)
-
-    stat_plots = add_plots(new_root, df) # link these plot objects to a button command that swaps to different num of games
-    # Start the main loop for the new window
-    new_root.mainloop()
-
-def add_plots(root, df):
-    tabControl = ttk.Notebook(root) 
-    stat_tabs = ['Points', 'Assists', 'Rebounds']
-    stats = ['PTS', 'REB', 'AST']
-    stat_plots = []
-    for i in range(len(stats)):
-        fig = Figure(figsize = (10,9), dpi = 100) 
-        stat_plot = ttk.Frame(tabControl) 
-        tabControl.add(stat_plot, text=stat_tabs[i])
-        tabControl.pack(expand = 1, fill ="both") 
-        # adding the subplot 
-        pp = fig.add_subplot(111)  
+    def create_main_ui(self):
+        custom_font = ("Helvetica", 12)
         
-        stat_series = df[stats[i]]
-        avg = stat_series.mean()
-        colors = build_colors(stat_series, avg)
+        frame = tk.Frame(self.root, bg="#F0F0F0")
+        frame.pack(expand=True)
 
-        names = range(1,len(stat_series)+1)
-        # plotting the graph 
-        pp.bar(names, stat_series, color=colors) 
-        pp.set_ylabel(stat_tabs[i], fontsize=10)
-        pp.axhline(avg, color='black', ls='dotted')
-  
-        # creating the Tkinter canvas 
-        # containing the Matplotlib figure 
-        canvas = FigureCanvasTkAgg(fig, master=stat_plot)   
-        canvas.draw() 
+        label = tk.Label(frame, text="Player:", font=custom_font, bg="#F0F0F0", fg="#333333")
+        label.grid(row=0, column=0, padx=(0, 10))
+
+        self.entry = tk.Entry(frame, width=20, font=custom_font, highlightbackground="#CCCCCC", highlightthickness=1, relief="flat")
+        self.entry.grid(row=0, column=1, padx=(0, 10))
+        self.entry.insert(0, "Enter player name")
+        self.entry.bind("<FocusIn>", self.on_entry_click)
+        self.entry.focus_set()
+
+        self.search_button = tk.Button(frame, text="Search", font=custom_font, command=self.find_player_stats, bg="#E0E0E0", fg="#333333", relief="flat", padx=10, pady=5)
+        self.search_button.grid(row=0, column=2)
+        self.search_button.bind("<Enter>", self.on_enter)
+        self.search_button.bind("<Leave>", self.on_leave)
+        self.root.bind('<Return>', lambda event: self.find_player_stats())
+
+    def on_entry_click(self, event):
+        if self.entry.get() == "Enter player name":
+            self.entry.delete(0, "end")
     
-        # placing the canvas on the Tkinter window 
-        canvas.get_tk_widget().pack() 
-        stat_plots.append(pp)
+    def on_enter(self, event):
+        self.search_button.config(bg="#333333", fg="#FFFFFF")
+
+    def on_leave(self, event):
+        self.search_button.config(bg="#E0E0E0", fg="#333333")
+
+    def find_player_stats(self):
+        player_name = self.entry.get().strip()
+        player = player_name.split()
         
-    return stat_plots
-    
-# Create the main window
+        if len(player) == 2:
+            url = f"https://www.statmuse.com/nba/ask/{player[0].lower()}-{player[1].lower()}-last-25-games"
+            try:
+                response = requests.get(url)
+                response.raise_for_status()
+                
+                soup = BeautifulSoup(response.content, 'html.parser')
+                table = soup.find('table')
+                
+                if table:
+                    headers = [th.get_text().strip() for th in table.find_all('th')]
+                    rows = [[td.get_text().strip() for td in tr.find_all('td')] for tr in table.find_all('tr')[1:]]
+                    df = pd.DataFrame(rows, columns=headers)
+                    df = df.iloc[:len(df)-2,2:]  # Drop the bottom two rows
+                    df = df.iloc[::-1].reset_index(drop=True)  # Reverse for recent games
+                    df.iloc[:,0] = df.iloc[0,0].split()[0]+' '+df.iloc[0,0].split()[1]  # Clean player name column
+                    df.iloc[:, 5:] = df.iloc[:, 5:].apply(pd.to_numeric, errors='coerce')  # Convert stat columns to numeric
+                    print(df)
+                    self.open_new_window(df)
+                else:
+                    messagebox.showerror("Data Error", "Could not find a data table for the player.")
+            except requests.exceptions.RequestException as e:
+                messagebox.showerror("Connection Error", f"Failed to retrieve data: {e}")
+        else:
+            messagebox.showerror("Input Error", "Please enter a full name (First Last).")
+
+    def open_new_window(self, df):
+        self.root.withdraw()
+        new_root = tk.Toplevel(self.root)
+        new_root.title("Player Performance")
+        new_root.geometry("800x850")
+
+        # Bind the second window's close event to a custom function
+        new_root.protocol("WM_DELETE_WINDOW", self.close_application)
+        
+        DisplayStats(new_root, df)
+
+    def close_application(self):
+        self.root.quit()  # Quit the Tkinter main loop
+        self.root.destroy()  # Destroy the Tkinter root window
+
+class DisplayStats:
+    def __init__(self, root, df):
+        self.root = root
+        self.df = df
+        self.create_ui()
+
+    def create_ui(self):
+        frame = tk.Frame(self.root)
+        frame.pack(anchor="nw", padx=20, pady=20)
+
+        title_label = tk.Label(frame, text="Averages over Last 25 Games:", font=("Helvetica", 12, "bold"))
+        title_label.grid(row=0, column=0, sticky="w", pady=5, padx=5)
+
+        avg_pts_25 = np.mean(pd.to_numeric(self.df.iloc[:, 6], errors="coerce"))
+        avg_reb_25 = np.mean(pd.to_numeric(self.df.iloc[:, 7], errors="coerce"))
+        avg_ast_25 = np.mean(pd.to_numeric(self.df.iloc[:, 8], errors="coerce"))
+
+        stats = [("Points", avg_pts_25), ("Rebounds", avg_reb_25), ("Assists", avg_ast_25)]
+        for i, (stat_name, avg_val) in enumerate(stats):
+            label = tk.Label(frame, text=f"{stat_name}: {avg_val:.2f}", font=("Helvetica", 12), bg="gray", fg="white", padx=25, pady=5, relief="solid", bd=2, width=8, height=2)
+            label.grid(row=i + 1, column=0, sticky="w", pady=5, padx=50)
+
+        self.create_game_selection_buttons()
+        self.create_plots()
+
+        # Ensure button is added only once after window layout is completed
+        self.root.after(100, self.add_return_button)
+
+    def add_return_button(self):
+        # Create and position the button after layout
+        return_button = tk.Button(self.root, text="Return to Search", font=("Helvetica", 12), command=self.return_to_search, bg="#E0E0E0", fg="#333333", relief="flat", padx=10, pady=5)
+
+        # Position the button at the bottom-right of the window
+        return_button.place(relx=1.0, rely=1.0, x=-10, y=-10, anchor="se")
+
+    def return_to_search(self):
+        self.root.destroy()  # Close the new window
+        root.deiconify()  # Reopen the main window
+
+    def create_game_selection_buttons(self):
+        box = tk.Frame(self.root)
+        box.pack(fill='x')
+        game_label = tk.Label(box, text="Games Select:", font=("Helvetica", 12), padx=25, pady=5, width=8, height=2)
+        game_label.grid(row=0, column=0, pady=5, padx=20)
+
+        for i in range(5, 30, 5):
+            btn = tk.Button(box, text=str(i), bg="#E0E0E0", fg="#333333", relief="flat", padx=10, pady=5, width=8, height=2,
+                            command=lambda n=i: self.update_plots(n))
+            btn.grid(row=0, column=i//5, pady=5, padx=20)
+
+    def create_plots(self):
+        self.tabControl = ttk.Notebook(self.root)
+        self.tabControl.pack(expand=1, fill="both",padx=20,pady=20)
+        self.stat_tabs = ['Points', 'Rebounds', 'Assists']
+        self.stats = ['PTS', 'REB', 'AST']
+
+        self.plots = {}
+        for stat in self.stats:
+            tab = ttk.Frame(self.tabControl)
+            fig = Figure(figsize=(6,4), dpi=100)
+            plot = fig.add_subplot(111)
+            canvas = FigureCanvasTkAgg(fig, master=tab)
+            canvas.get_tk_widget().pack(padx=20,pady=20)
+            self.tabControl.add(tab, text=stat)
+            self.plots[stat] = (plot, canvas)
+
+        self.update_plots(25)
+
+    def update_plots(self, num_games):
+        for i, stat in enumerate(self.stats):
+            plot, canvas = self.plots[stat]
+            plot.clear()
+
+            stat_series = pd.to_numeric(self.df[stat][:num_games], errors="coerce").dropna()
+            avg = self.df[stat][:25].mean()
+            colors = ['red' if val < avg else 'green' for val in stat_series]
+            names = range(1, len(stat_series) + 1)
+
+            plot.bar(names, stat_series, color=colors)
+            plot.set_title(f"{self.stat_tabs[i]} (Last {num_games} Games)")
+            plot.axhline(avg, color='black', linestyle='dotted')
+            canvas.draw()
+
+
 root = tk.Tk()
-root.title("Player Search")
-root.geometry("400x150")
-root.configure(bg="#F0F0F0")  # Light grey background for a modern feel
-
-# Use a custom font and add some styling
-custom_font = ("Helvetica", 12)
-
-# Frame for styling and positioning, centered vertically and horizontally
-frame = tk.Frame(root, bg="#F0F0F0")
-frame.pack(expand=True)  # Center the frame in the window
-
-# Label with modern font and color
-label = tk.Label(frame, text="Player:", font=custom_font, bg="#F0F0F0", fg="#333333")
-label.grid(row=0, column=0, padx=(0, 10))
-
-# Entry field with modern style
-entry = tk.Entry(frame, width=20, font=custom_font, highlightbackground="#CCCCCC", highlightthickness=1, relief="flat")
-entry.grid(row=0, column=1, padx=(0, 10))
-entry.focus_set()  # Automatically focus on entry
-
-# Placeholder text for entry
-entry.insert(0, "Enter player name")
-def on_entry_click(event):
-    if entry.get() == "Enter player name":
-        entry.delete(0, "end")  # Clear the placeholder text
-entry.bind("<FocusIn>", on_entry_click)
-
-# Modern, rounded search button with hover effect
-def on_enter(event):
-    search_button.config(bg="#333333", fg="#FFFFFF")
-
-def on_leave(event):
-    search_button.config(bg="#E0E0E0", fg="#333333")
-
-search_button = tk.Button(frame, text="Search", font=custom_font, command=find_player_stats, bg="#E0E0E0", fg="#333333", relief="flat", padx=10, pady=5)
-search_button.grid(row=0, column=2)
-search_button.bind("<Enter>", on_enter)
-search_button.bind("<Leave>", on_leave)
-
-# Bind "Enter" key to initiate search
-root.bind('<Return>', lambda event: find_player_stats())
-
-# Run the application
+app = PlayerStatsApp(root)
 root.mainloop()
