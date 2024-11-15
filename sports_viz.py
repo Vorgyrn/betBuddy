@@ -71,7 +71,6 @@ class PlayerStatsApp:
                     df = df.iloc[::-1].reset_index(drop=True)  # Reverse for recent games
                     df.iloc[:,0] = df.iloc[0,0].split()[0]+' '+df.iloc[0,0].split()[1]  # Clean player name column
                     df.iloc[:, 5:] = df.iloc[:, 5:].apply(pd.to_numeric, errors='coerce')  # Convert stat columns to numeric
-                    print(df)
                     self.open_new_window(df)
                 else:
                     messagebox.showerror("Data Error", "Could not find a data table for the player.")
