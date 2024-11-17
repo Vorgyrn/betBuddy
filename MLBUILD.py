@@ -90,7 +90,7 @@ def get_team_name(abbreviation):
 
 def get_game_logs(player):
     #Choose what years to include in ML algorithm
-    years = [2025,2024,2023,2022,2021,2020,2019,2018,2017]
+    years = [2025,2024]#,2023,2022,2021,2020,2019,2018,2017]
 
     
     df_all_games = pd.DataFrame()
@@ -161,6 +161,7 @@ def clean_team_name(player_game_logs):
     clean_df['TM'] = team_list
     clean_df['OPP'] = opp_list
     clean_df.rename(columns={'': 'H/A Status'}, inplace=True)
+    
 
     return clean_df
 
@@ -168,6 +169,19 @@ def clean_team_name(player_game_logs):
 def get_def_stats(clean_df):
     pts_per_game_def = []
     pts_l3_game_def = []
+    def_eff = []
+    def_eff_l3 = []
+    opp_fp = []
+    opp_fp_l3 = []
+    opp_fb_pts = []
+    opp_fb_pts_l3 = []
+    opp_fb_eff = []
+    opp_fb_eff_l3 = []
+    opp_2pt = []
+    opp_2pt_l3 = []
+    opp_3pt = []
+    opp_3pt_l3 = []
+    j = 0
     for i in range(len(clean_df)):
         date = clean_df.iloc[i,1].split('/')
         os.system('cls')
@@ -182,24 +196,74 @@ def get_def_stats(clean_df):
         print(100 * "-")
         print("|" * num_bars + " " * (progress_bar_length - num_bars))  # Display bars
         print(100 * "-")
+        print(j*".")
         
         # Print current progress in text
         print(f"Getting Data from Game {i} of {len(clean_df)}\r")
-        url = f"https://www.teamrankings.com/nba/stat/opponent-points-per-game?date={date[2]}-{date[0]}-{date[1]}"
-        response = requests.get(url)
-        soup = BeautifulSoup(response.content, 'html.parser')
-        table = soup.find('table')
-        if table:
-            headers = [th.get_text().strip() for th in table.find_all('th')]
-            rows = [[td.get_text().strip() for td in tr.find_all('td')] for tr in table.find_all('tr')[1:]]
-            df = pd.DataFrame(rows, columns=headers)
-        index = df.loc[df["Team"] == f'{clean_df.iloc[i,4]}'].index
-        pts_per_game_def.append(df.iloc[index[0],2])
-        pts_l3_game_def.append(df.iloc[index[0],3])
+        
+        url1 = f"https://www.teamrankings.com/nba/stat/opponent-points-per-game?date={date[2]}-{date[0]}-{date[1]}"
+        url2 = f"https://www.teamrankings.com/nba/stat/defensive-efficiency?date={date[2]}-{date[0]}-{date[1]}"
+        url3 = f"https://www.teamrankings.com/nba/stat/opponent-floor-percentage?date={date[2]}-{date[0]}-{date[1]}"
+        url4 = f"https://www.teamrankings.com/nba/stat/opponent-fastbreak-points-per-game?date={date[2]}-{date[0]}-{date[1]}"
+        url5 = f"https://www.teamrankings.com/nba/stat/opponent-fastbreak-efficiency?date={date[2]}-{date[0]}-{date[1]}"
+        url6 = f"https://www.teamrankings.com/nba/stat/opponent-points-from-2-pointers?date={date[2]}-{date[0]}-{date[1]}"
+        url7 = f"https://www.teamrankings.com/nba/stat/opponent-points-from-3-pointers?date={date[2]}-{date[0]}-{date[1]}"
+        urls = [url1, url2, url3, url4, url5,url6,url7]
+        for j in range(len(urls)):
+            
+            
+            
+            response = requests.get(urls[j])
+            soup = BeautifulSoup(response.content, 'html.parser')
+            table = soup.find('table')
+            if table:
+                headers = [th.get_text().strip() for th in table.find_all('th')]
+                rows = [[td.get_text().strip() for td in tr.find_all('td')] for tr in table.find_all('tr')[1:]]
+                df = pd.DataFrame(rows, columns=headers)
+            index = df.loc[df["Team"] == f'{clean_df.iloc[i,4]}'].index
+            if urls[j] == url1:
+                pts_per_game_def.append(df.iloc[index[0],2])
+                pts_l3_game_def.append(df.iloc[index[0],3])
+            if urls[j] == url2:
+                def_eff.append(df.iloc[index[0],2])
+                def_eff_l3.append(df.iloc[index[0],3])
+            if urls[j] == url3:
+                opp_fp.append(float(df.iloc[index[0],2].strip('%'))/100)
+                opp_fp_l3.append(float(df.iloc[index[0],3].strip('%'))/100)
+            if urls[j] == url4:
+                opp_fb_pts.append(df.iloc[index[0],2])
+                opp_fb_pts_l3.append(df.iloc[index[0],3])
+            if urls[j] == url5:
+                opp_fb_eff.append(df.iloc[index[0],2])
+                opp_fb_eff_l3.append(df.iloc[index[0],3])
+            if urls[j] == url6:
+                opp_2pt.append(df.iloc[index[0],2])
+                opp_2pt_l3.append(df.iloc[index[0],3])
+            if urls[j] == url7:
+                opp_3pt.append(df.iloc[index[0],2])
+                opp_3pt_l3.append(df.iloc[index[0],3])   
+            
+
+   
+                
     df_w_def_stats = clean_df
     df_w_def_stats["AVG D PTS ALLOWED"] = pts_per_game_def
     df_w_def_stats["AVG D PTS ALLOWED L3"] = pts_l3_game_def
+    df_w_def_stats["OPP DEF EFF"] = def_eff
+    df_w_def_stats["OPP DEF EFF L3"] = def_eff_l3
+    df_w_def_stats["OPP F%"] = opp_fp 
+    df_w_def_stats["OPP F% L3"] = opp_fp_l3 
+    df_w_def_stats["OPP FB PTS"] = opp_fb_pts
+    df_w_def_stats["OPP FB PTS L3"] = opp_fb_pts_l3
+    df_w_def_stats["OPP FB EFF"] = opp_fb_eff
+    df_w_def_stats["OPP FB EFF L3"] = opp_fb_eff_l3
+    df_w_def_stats["OPP 2PTS"] = opp_2pt
+    df_w_def_stats["OPP 2PTS L3"] = opp_2pt_l3
+    df_w_def_stats["OPP 3PTS"] = opp_3pt
+    df_w_def_stats["OPP 3PTS L3"] = opp_3pt_l3
 
+    # Assuming df is your DataFrame
+    df_w_def_stats.iloc[:, 5:] = df_w_def_stats.iloc[:, 5:].apply(pd.to_numeric, errors='coerce')
     return df_w_def_stats
 
 
