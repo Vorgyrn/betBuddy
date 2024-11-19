@@ -131,8 +131,8 @@ class NBAPlayerLookup:
 
 
 def main():
-    player_name = input("Input Player Name: ")
-    szn = input("Enter Season:")
+    player_name = input("Input Player Name (e.g. Lebron James): ")
+    szn = input("Enter Season (e.g. 2023):")
     nba_lookup = NBAPlayerLookup(active_only=True)
     player_ids = nba_lookup.display_player_matches(player_name)
     rolling_game_logs_df = nba_lookup.make_df(player_ids,szn)
