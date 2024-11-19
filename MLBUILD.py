@@ -2,6 +2,8 @@ import unicodedata
 import pandas as pd
 from nba_api.stats.endpoints import playergamelog
 from nba_api.stats.static import players
+from nba_api.stats.static import teams
+from nba_api.stats.endpoints import teamgamelog
 
 class NBAPlayerLookup:
     def __init__(self, active_only=True):
@@ -47,7 +49,7 @@ class NBAPlayerLookup:
             print(f"No players found with the name '{player_name}'.")
             return []
 
-    def get_player_game_logs(self, player_id,szn):
+    def get_player_game_logs(self, player_id, szn):
         """
         Fetches the game logs for a given player using their ID.
 
@@ -60,32 +62,31 @@ class NBAPlayerLookup:
         return game_log_data
 
     def calculate_rolling_stats(self, game_logs, window=5):
-      """
-      Calculates rolling statistics for key player stats (e.g., PTS, AST, REB) as a list of values
-      from the previous n games, excluding the current game.
+        """
+        Calculates rolling statistics for key player stats (e.g., PTS, AST, REB) as a list of values
+        from the previous n games, excluding the current game.
 
-      :param game_logs: DataFrame of player game logs.
-      :param window: The number of games for the rolling window (default is 5).
-      :return: DataFrame with rolling stats, excluding the current game.
-      """
-      rolling_stats = game_logs.copy()
+        :param game_logs: DataFrame of player game logs.
+        :param window: The number of games for the rolling window (default is 5).
+        :return: DataFrame with rolling stats, excluding the current game.
+        """
+        rolling_stats = game_logs.copy()
 
-      # List of key stats to calculate rolling values for
-      stats_columns = ['MIN', 'FGM', 'FGA', 'FG_PCT', 'FG3M', 'FG3A', 'FG3_PCT', 'FTM', 'FTA', 'FT_PCT',
-                      'OREB', 'DREB', 'REB', 'AST', 'STL', 'BLK', 'TOV', 'PF', 'PTS', 'PLUS_MINUS']
+        # List of key stats to calculate rolling values for
+        stats_columns = ['MIN', 'FGM', 'FGA', 'FG_PCT', 'FG3M', 'FG3A', 'FG3_PCT', 'FTM', 'FTA', 'FT_PCT',
+                         'OREB', 'DREB', 'REB', 'AST', 'STL', 'BLK', 'TOV', 'PF', 'PTS', 'PLUS_MINUS']
 
-      for stat in stats_columns:
-          rolling_values = []  # To hold the rolling values for the stat
+        for stat in stats_columns:
+            rolling_values = []  # To hold the rolling values for the stat
 
-          for i in range(len(game_logs)):
-              # Get the previous n games, excluding the current game
-              previous_games = game_logs[stat].iloc[max(i-window, 0):i]  # Exclude current game, use max(i-window, 0) to avoid negative indexing
-              rolling_values.append(list(previous_games))  # Append the previous game stats as a list
+            for i in range(len(game_logs)):
+                # Get the previous n games, excluding the current game
+                previous_games = game_logs[stat].iloc[max(i-window, 0):i]  # Exclude current game, use max(i-window, 0) to avoid negative indexing
+                rolling_values.append(list(previous_games))  # Append the previous game stats as a list
 
-          rolling_stats[f'{stat}_ROLLING'] = rolling_values
+            rolling_stats[f'{stat}_ROLLING'] = rolling_values
 
-      return rolling_stats
-
+        return rolling_stats
 
     def display_player_matches(self, player_name):
         """
@@ -115,33 +116,80 @@ class NBAPlayerLookup:
             print(f"Fetching game logs for player with ID {player_id}...")
 
             # Fetch game logs
-            game_logs = self.get_player_game_logs(player_id,szn)
+            game_logs = self.get_player_game_logs(player_id, szn)
 
             # Display the first few game logs
             print(game_logs.head())  # Display the first few rows of the DataFrame
 
             # Calculate rolling stats for key player stats
             rolling_game_logs = self.calculate_rolling_stats(game_logs)
-            rolling_game_logs = rolling_game_logs.iloc[5:,:]
-            # Display the rolling stats DataFrame
-            print("\nRolling Stats for the Last 5 Games:")
+            rolling_game_logs = rolling_game_logs.iloc[5:, :]  # Skip the first 5 games (to get valid rolling stats)
+
+            # Return the rolling game logs
             return rolling_game_logs
         else:
             print("No player found.")
 
+    def get_team_id_from_abbreviation(self, abbreviation):
+        """
+        Gets the team ID from a team abbreviation.
+        
+        :param abbreviation: The team's abbreviation (e.g., 'LAL').
+        :return: The team ID if found, else None.
+        """
+        all_teams = teams.get_teams()
+
+        # Find the team that matches the abbreviation
+        team = next((team for team in all_teams if team['abbreviation'] == abbreviation), None)
+
+        if team:
+            return team['id']  # Return the team ID
+        else:
+            print(f"Team abbreviation '{abbreviation}' not found.")
+            return None
+
+    def get_team_game_logs(self, game_logs_df, szn):
+        """
+        Fetches the team game logs for each opponent based on the game logs of the player.
+
+        :param game_logs_df: DataFrame containing player game logs.
+        :param szn: Season year.
+        """
+
+        for i in range(len(game_logs_df)):
+            # Extract the matchup column
+            matchup_column = game_logs_df.iloc[i, 4]  # Matchup is typically in the 5th column (index 4)
+            print("MATCHUP:", matchup_column)
+
+            # Get the opponent team abbreviation
+            team_abbreviation = matchup_column.split()[-1].strip()
+
+            team_id = self.get_team_id_from_abbreviation(team_abbreviation)
+
+            if team_id:
+                # Fetch team game logs for the opponent
+                game_log = teamgamelog.TeamGameLog(team_id=team_id, season=szn)
+                team_game_log_data = game_log.get_data_frames()[0]  # Convert to Pandas DataFrame
+                
+                # Store the opponent team game logs
+                print(team_game_log_data.head())  # For simplicity, append the first few rows
+            else:
+                print(f"Invalid team abbreviation {team_abbreviation}. Skipping...")
+
+        
+
 
 def main():
     player_name = input("Input Player Name (e.g. Lebron James): ")
-    szn = input("Enter Season (e.g. 2023):")
+    szn = input("Enter Season (e.g. 2023): ")
     nba_lookup = NBAPlayerLookup(active_only=True)
     player_ids = nba_lookup.display_player_matches(player_name)
-    rolling_game_logs_df = nba_lookup.make_df(player_ids,szn)
+    game_logs_df = nba_lookup.make_df(player_ids, szn)
+    print(game_logs_df)
+    defensive_stats = nba_lookup.get_team_game_logs(game_logs_df, szn)
 
-    if rolling_game_logs_df is not None:
-        # You can now manipulate the rolling_game_logs_df DataFrame as needed
-        print(rolling_game_logs_df)  # Display first few rows with rolling stats
-    else:
-      print("WARNING: No game logs found for this season.")
+    # If you want to inspect the defensive stats
+    print(defensive_stats)
 
 
 if __name__ == "__main__":
