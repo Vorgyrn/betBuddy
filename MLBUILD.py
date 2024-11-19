@@ -1,288 +1,148 @@
-##ML Builder
-import requests
-from bs4 import BeautifulSoup
+import unicodedata
 import pandas as pd
-import numpy as np
-import os
-import sys
-import tkinter as tk
-from tkinter import simpledialog
+from nba_api.stats.endpoints import playergamelog
+from nba_api.stats.static import players
 
-# Dictionary for full team name to abbreviation
-team_name_to_abbr = {
-    'Atlanta': 'ATL',
-    'Boston': 'BOS',
-    'Brooklyn': 'BKN',
-    'Charlotte': 'CHA',
-    'Chicago': 'CHI',
-    'Cleveland': 'CLE',
-    'Dallas': 'DAL',
-    'Denver': 'DEN',
-    'Detroit': 'DET',
-    'Golden State': 'GSW',
-    'Houston': 'HOU',
-    'Indiana': 'IND',
-    'LA Clippers': 'LAC',
-    'LA Lakers': 'LAL',
-    'Memphis': 'MEM',
-    'Miami': 'MIA',
-    'Milwaukee': 'MIL',
-    'Minnesota': 'MIN',
-    'New Orleans': 'NOP',
-    'New York': 'NYK',
-    'Okla City': 'OKC',
-    'Orlando': 'ORL',
-    'Philadelphia': 'PHI',
-    'Phoenix': 'PHX',
-    'Portland': 'POR',
-    'Sacramento': 'SAC',
-    'San Antonio': 'SAS',
-    'Toronto': 'TOR',
-    'Utah': 'UTA',
-    'Washington': 'WAS'
-}
+class NBAPlayerLookup:
+    def __init__(self, active_only=True):
+        """
+        Initializes the NBAPlayerLookup object.
 
-# Dictionary for abbreviation to full team name
-abbr_to_team_name = {abbreviation: team for team, abbreviation in team_name_to_abbr.items()}
+        :param active_only: If True, only active players are considered.
+        """
+        self.active_only = active_only
+        self.all_players = players.get_players()
 
-def get_player_name():
-     # Create a simple Tkinter root window (hidden)
-    root = tk.Tk()
-    root.withdraw()  # Hide the main window
+    def normalize_text(self, text):
+        """
+        Normalize a string to remove special characters and accents.
 
-    # Create a dialog box to prompt for player name
-    player_name = simpledialog.askstring("Player Search", "Enter NBA Player Name:")
+        :param text: The input string to normalize.
+        :return: A normalized string without special characters or accents.
+        """
+        return ''.join(
+            c for c in unicodedata.normalize('NFD', text)
+            if unicodedata.category(c) != 'Mn'
+        ).lower()
 
-    # Handle the user input
-    if player_name:
-        print(f"Player selected: {player_name}")
-        return player_name
-    else:
-        print("No player name entered. Exiting...")
-        return None
-    
-def check_file_existence(player):
-    # Convert player name to lowercase and construct the file name
-    file_name = f"{player.lower()} NBA Game Log.csv"
-    
-    # Check if the file exists in the current directory
-    if os.path.exists(file_name):
-        # Prompt the user for confirmation
-        response = input(f"The file '{file_name}' already exists. Are you sure you want to overwrite it? (Y/N): ").strip().lower()
-        if response == 'y':
-            print("Proceeding to overwrite the file...")
-            return True  # Allow the program to continue
+    def get_player_ids(self, player_name):
+        """
+        Fetches the player IDs for all players matching the given name, ignoring special characters.
+
+        :param player_name: Full name of the player (e.g., "Luka Doncic" without accents).
+        :return: A list of dictionaries containing player IDs and details, or an empty list if no match is found.
+        """
+        normalized_input = self.normalize_text(player_name)
+        matching_players = [
+            p for p in self.all_players
+            if self.normalize_text(p['full_name']) == normalized_input
+            and (not self.active_only or p['is_active'])
+        ]
+
+        if matching_players:
+            if len(matching_players) > 1:
+                print(f"Warning: {len(matching_players)} players found with the name '{player_name}'.")
+            return matching_players
         else:
-            print("Terminating the program to avoid overwriting the file.")
-            sys.exit(0)  # Terminate the program
-    else:
-        print(f"No existing file named '{file_name}' found. Proceeding to create a new file.")
-        return True  # Allow the program to continue
-    
-# Function to get abbreviation from full team name
-def get_abbreviation(team_name):
-    return team_name_to_abbr.get(team_name, "Team not found")
+            print(f"No players found with the name '{player_name}'.")
+            return []
 
-# Function to get full team name from abbreviation
-def get_team_name(abbreviation):
-    return abbr_to_team_name.get(abbreviation, "Abbreviation not found")
+    def get_player_game_logs(self, player_id,szn):
+        """
+        Fetches the game logs for a given player using their ID.
+
+        :param player_id: The player's unique ID.
+        :return: A Pandas DataFrame containing game log data.
+        """
+        game_log = playergamelog.PlayerGameLog(player_id=player_id, season=szn)  # Specify the season you want
+        game_log_data = game_log.get_data_frames()[0]  # Convert to Pandas DataFrame
+
+        return game_log_data
+
+    def calculate_rolling_stats(self, game_logs, window=5):
+      """
+      Calculates rolling statistics for key player stats (e.g., PTS, AST, REB) as a list of values
+      from the previous n games, excluding the current game.
+
+      :param game_logs: DataFrame of player game logs.
+      :param window: The number of games for the rolling window (default is 5).
+      :return: DataFrame with rolling stats, excluding the current game.
+      """
+      rolling_stats = game_logs.copy()
+
+      # List of key stats to calculate rolling values for
+      stats_columns = ['MIN', 'FGM', 'FGA', 'FG_PCT', 'FG3M', 'FG3A', 'FG3_PCT', 'FTM', 'FTA', 'FT_PCT',
+                      'OREB', 'DREB', 'REB', 'AST', 'STL', 'BLK', 'TOV', 'PF', 'PTS', 'PLUS_MINUS']
+
+      for stat in stats_columns:
+          rolling_values = []  # To hold the rolling values for the stat
+
+          for i in range(len(game_logs)):
+              # Get the previous n games, excluding the current game
+              previous_games = game_logs[stat].iloc[max(i-window, 0):i]  # Exclude current game, use max(i-window, 0) to avoid negative indexing
+              rolling_values.append(list(previous_games))  # Append the previous game stats as a list
+
+          rolling_stats[f'{stat}_ROLLING'] = rolling_values
+
+      return rolling_stats
 
 
-def get_game_logs(player):
-    #Choose what years to include in ML algorithm
-    years = [2025,2024]#,2023,2022,2021,2020,2019,2018,2017]
+    def display_player_matches(self, player_name):
+        """
+        Displays the player matches for the given player name.
 
-    
-    df_all_games = pd.DataFrame()
-    for year in years:
-        url = f"https://www.statmuse.com/nba/ask?q={player.split()[0].lower()}+{player.split()[1].lower()}+regular+season+game+log+{year-1}-{year}+season"
-        response = requests.get(url)
-        soup = BeautifulSoup(response.content, 'html.parser')
-        table = soup.find('table')    
-        if table:
-            headers = [th.get_text().strip() for th in table.find_all('th')]
-            rows = [[td.get_text().strip() for td in tr.find_all('td')] for tr in table.find_all('tr')[1:]]
-            df = pd.DataFrame(rows, columns=headers)
-            df = df.iloc[:len(df)-3,2:]
-            df.iloc[:,0] = df.iloc[0,0].split()[0] + ' ' + df.iloc[0,0].split()[1]
-            df.iloc[:, 5:] = df.iloc[:, 5:].apply(pd.to_numeric, errors='coerce')
-            df_all_games = pd.concat([df_all_games,df], axis = 0, ignore_index=True)
-    df_all_games = df_all_games.iloc[::-1].reset_index(drop=True)  # Reverse for recent games
-    return df_all_games
+        :param player_name: The name of the player to search for.
+        :return: A list of player IDs matching the name or an empty list if no match is found.
+        """
+        player_matches = self.get_player_ids(player_name)
 
-def pts_trend_col(df_all_games):
-    pts_trend = []
-    for i in range(len(df_all_games)):
-        if i<=5:
-            pts_trend.append('-')
+        if player_matches:
+            player_ids = [player['id'] for player in player_matches]
+            print(player_ids)
+            return player_ids
         else:
-            pts_avg_l5 = np.mean(df_all_games.iloc[i-6:i-1,6])
-            pts_trend.append(pts_avg_l5)
-        
-    df_all_games['L5 PTS AVG'] = pts_trend
-    df_w_pts_trend = df_all_games
-    return df_w_pts_trend
+            return []
 
-def reb_trend_col(df_w_pts_trend):
-    reb_trend = []
-    for i in range(len(df_w_pts_trend)):
-        if i<=5:
-            reb_trend.append('-')
+    def make_df(self, player_ids, szn):
+        """
+        Creates a DataFrame of the player's game logs and calculates rolling statistics.
+
+        :param player_ids: The list of player IDs to fetch game logs for.
+        """
+        if player_ids:
+            # Assuming the first match is the correct one
+            player_id = player_ids[0]
+            print(f"Fetching game logs for player with ID {player_id}...")
+
+            # Fetch game logs
+            game_logs = self.get_player_game_logs(player_id,szn)
+
+            # Display the first few game logs
+            print(game_logs.head())  # Display the first few rows of the DataFrame
+
+            # Calculate rolling stats for key player stats
+            rolling_game_logs = self.calculate_rolling_stats(game_logs)
+            rolling_game_logs = rolling_game_logs.iloc[5:,:]
+            # Display the rolling stats DataFrame
+            print("\nRolling Stats for the Last 5 Games:")
+            return rolling_game_logs
         else:
-            reb_avg_l5 = np.mean(df_w_pts_trend.iloc[i-6:i-1,7])
-            reb_trend.append(np.mean(reb_avg_l5))
-    df_w_pts_trend['L5 REB AVG'] = reb_trend
-    df_w_reb_trend = df_w_pts_trend
-    return df_w_reb_trend
-
-def ast_trend_col(df_w_reb_trend):
-    ast_trend = []
-    for i in range(len(df_w_reb_trend)):
-        if i<=5:
-            ast_trend.append('-')
-        else:
-            ast_avg_l5 = np.mean(df_w_reb_trend.iloc[i-6:i-1,8])
-            ast_trend.append(np.mean(ast_avg_l5))
-    df_w_reb_trend['L5 AST AVG'] = ast_trend
-    df_w_ast_trend = df_w_reb_trend.iloc[6:,:]
-    return df_w_ast_trend
-
-def clean_team_name(player_game_logs):
-    team_list = []
-    opp_list = []
-    for i in range(len(player_game_logs)):
-        team_abbrev = player_game_logs.iloc[i,2]
-        opp_abbrev = player_game_logs.iloc[i,4]
-        team_name = get_team_name(team_abbrev)
-        opp_name = get_team_name(opp_abbrev)
-        team_list.append(team_name)
-        opp_list.append(opp_name)
-    clean_df = player_game_logs
-    clean_df['TM'] = team_list
-    clean_df['OPP'] = opp_list
-    clean_df.rename(columns={'': 'H/A Status'}, inplace=True)
-    
-
-    return clean_df
-
-
-def get_def_stats(clean_df):
-    pts_per_game_def = []
-    pts_l3_game_def = []
-    def_eff = []
-    def_eff_l3 = []
-    opp_fp = []
-    opp_fp_l3 = []
-    opp_fb_pts = []
-    opp_fb_pts_l3 = []
-    opp_fb_eff = []
-    opp_fb_eff_l3 = []
-    opp_2pt = []
-    opp_2pt_l3 = []
-    opp_3pt = []
-    opp_3pt_l3 = []
-    j = 0
-    for i in range(len(clean_df)):
-        date = clean_df.iloc[i,1].split('/')
-        os.system('cls')
-        # Calculate progress ratio and how many bars to show
-        progress_ratio = i / len(clean_df)
-        progress_bar_length = 100  # Number of bars (|) to show
-        
-        # Calculate number of bars based on progress
-        num_bars = int(progress_ratio * progress_bar_length)
-        
-        # Print the progress bar
-        print(100 * "-")
-        print("|" * num_bars + " " * (progress_bar_length - num_bars))  # Display bars
-        print(100 * "-")
-        print(j*".")
-        
-        # Print current progress in text
-        print(f"Getting Data from Game {i} of {len(clean_df)}\r")
-        
-        url1 = f"https://www.teamrankings.com/nba/stat/opponent-points-per-game?date={date[2]}-{date[0]}-{date[1]}"
-        url2 = f"https://www.teamrankings.com/nba/stat/defensive-efficiency?date={date[2]}-{date[0]}-{date[1]}"
-        url3 = f"https://www.teamrankings.com/nba/stat/opponent-floor-percentage?date={date[2]}-{date[0]}-{date[1]}"
-        url4 = f"https://www.teamrankings.com/nba/stat/opponent-fastbreak-points-per-game?date={date[2]}-{date[0]}-{date[1]}"
-        url5 = f"https://www.teamrankings.com/nba/stat/opponent-fastbreak-efficiency?date={date[2]}-{date[0]}-{date[1]}"
-        url6 = f"https://www.teamrankings.com/nba/stat/opponent-points-from-2-pointers?date={date[2]}-{date[0]}-{date[1]}"
-        url7 = f"https://www.teamrankings.com/nba/stat/opponent-points-from-3-pointers?date={date[2]}-{date[0]}-{date[1]}"
-        urls = [url1, url2, url3, url4, url5,url6,url7]
-        for j in range(len(urls)):
-            
-            
-            
-            response = requests.get(urls[j])
-            soup = BeautifulSoup(response.content, 'html.parser')
-            table = soup.find('table')
-            if table:
-                headers = [th.get_text().strip() for th in table.find_all('th')]
-                rows = [[td.get_text().strip() for td in tr.find_all('td')] for tr in table.find_all('tr')[1:]]
-                df = pd.DataFrame(rows, columns=headers)
-            index = df.loc[df["Team"] == f'{clean_df.iloc[i,4]}'].index
-            if urls[j] == url1:
-                pts_per_game_def.append(df.iloc[index[0],2])
-                pts_l3_game_def.append(df.iloc[index[0],3])
-            if urls[j] == url2:
-                def_eff.append(df.iloc[index[0],2])
-                def_eff_l3.append(df.iloc[index[0],3])
-            if urls[j] == url3:
-                opp_fp.append(float(df.iloc[index[0],2].strip('%'))/100)
-                opp_fp_l3.append(float(df.iloc[index[0],3].strip('%'))/100)
-            if urls[j] == url4:
-                opp_fb_pts.append(df.iloc[index[0],2])
-                opp_fb_pts_l3.append(df.iloc[index[0],3])
-            if urls[j] == url5:
-                opp_fb_eff.append(df.iloc[index[0],2])
-                opp_fb_eff_l3.append(df.iloc[index[0],3])
-            if urls[j] == url6:
-                opp_2pt.append(df.iloc[index[0],2])
-                opp_2pt_l3.append(df.iloc[index[0],3])
-            if urls[j] == url7:
-                opp_3pt.append(df.iloc[index[0],2])
-                opp_3pt_l3.append(df.iloc[index[0],3])   
-            
-
-   
-                
-    df_w_def_stats = clean_df
-    df_w_def_stats["AVG D PTS ALLOWED"] = pts_per_game_def
-    df_w_def_stats["AVG D PTS ALLOWED L3"] = pts_l3_game_def
-    df_w_def_stats["OPP DEF EFF"] = def_eff
-    df_w_def_stats["OPP DEF EFF L3"] = def_eff_l3
-    df_w_def_stats["OPP F%"] = opp_fp 
-    df_w_def_stats["OPP F% L3"] = opp_fp_l3 
-    df_w_def_stats["OPP FB PTS"] = opp_fb_pts
-    df_w_def_stats["OPP FB PTS L3"] = opp_fb_pts_l3
-    df_w_def_stats["OPP FB EFF"] = opp_fb_eff
-    df_w_def_stats["OPP FB EFF L3"] = opp_fb_eff_l3
-    df_w_def_stats["OPP 2PTS"] = opp_2pt
-    df_w_def_stats["OPP 2PTS L3"] = opp_2pt_l3
-    df_w_def_stats["OPP 3PTS"] = opp_3pt
-    df_w_def_stats["OPP 3PTS L3"] = opp_3pt_l3
-
-    # Assuming df is your DataFrame
-    df_w_def_stats.iloc[:, 5:] = df_w_def_stats.iloc[:, 5:].apply(pd.to_numeric, errors='coerce')
-    return df_w_def_stats
+            print("No player found.")
 
 
 def main():
-    #Choose player
-    player = get_player_name()
-    check_file_existence(player)
-    df_all_games = get_game_logs(player)
-    df_w_pts_trend = pts_trend_col(df_all_games)
-    df_w_reb_trend = reb_trend_col(df_w_pts_trend)
-    player_game_logs = ast_trend_col(df_w_reb_trend)
-    clean_df = clean_team_name(player_game_logs)
-    
-    def_log = get_def_stats(clean_df)
-    csv_file = f"{player.lower()} NBA Game Log.csv"
-    def_log.to_csv(csv_file,index = False)
-    os.startfile(csv_file)
+    player_name = input("Input Player Name: ")
+    szn = input("Enter Season:")
+    nba_lookup = NBAPlayerLookup(active_only=True)
+    player_ids = nba_lookup.display_player_matches(player_name)
+    rolling_game_logs_df = nba_lookup.make_df(player_ids,szn)
+
+    if rolling_game_logs_df is not None:
+        # You can now manipulate the rolling_game_logs_df DataFrame as needed
+        print(rolling_game_logs_df)  # Display first few rows with rolling stats
+    else:
+      print("WARNING: No game logs found for this season.")
 
 
-   
 if __name__ == "__main__":
     main()
