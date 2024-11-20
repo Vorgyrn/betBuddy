@@ -4,6 +4,9 @@ from nba_api.stats.endpoints import playergamelog
 from nba_api.stats.static import players
 from nba_api.stats.static import teams
 from nba_api.stats.endpoints import teamgamelog
+import requests
+from bs4 import BeautifulSoup
+import os
 
 class NBAPlayerLookup:
     def __init__(self, active_only=True):
@@ -119,7 +122,7 @@ class NBAPlayerLookup:
             game_logs = self.get_player_game_logs(player_id, szn)
 
             # Display the first few game logs
-            print(game_logs.head())  # Display the first few rows of the DataFrame
+            #print(game_logs)  # Display the first few rows of the DataFrame
 
             # Calculate rolling stats for key player stats
             rolling_game_logs = self.calculate_rolling_stats(game_logs)
@@ -133,7 +136,7 @@ class NBAPlayerLookup:
     def get_team_id_from_abbreviation(self, abbreviation):
         """
         Gets the team ID from a team abbreviation.
-        
+
         :param abbreviation: The team's abbreviation (e.g., 'LAL').
         :return: The team ID if found, else None.
         """
@@ -170,27 +173,167 @@ class NBAPlayerLookup:
                 # Fetch team game logs for the opponent
                 game_log = teamgamelog.TeamGameLog(team_id=team_id, season=szn)
                 team_game_log_data = game_log.get_data_frames()[0]  # Convert to Pandas DataFrame
-                
+
                 # Store the opponent team game logs
-                print(team_game_log_data.head())  # For simplicity, append the first few rows
+                #print(team_game_log_data.head())  # For simplicity, append the first few rows
             else:
                 print(f"Invalid team abbreviation {team_abbreviation}. Skipping...")
 
-        
+    def get_def_stats(self, game_logs_df):
+        pts_per_game_def = []
+        pts_l3_game_def = []
+        def_eff = []
+        def_eff_l3 = []
+        opp_fp = []
+        opp_fp_l3 = []
+        opp_fb_pts = []
+        opp_fb_pts_l3 = []
+        opp_fb_eff = []
+        opp_fb_eff_l3 = []
+        opp_2pt = []
+        opp_2pt_l3 = []
+        opp_3pt = []
+        opp_3pt_l3 = []
+
+        abbr_to_team_name = {"ATL": "Atlanta",
+                            "BOS": "Boston",
+                            "BKN": "Brooklyn",
+                            "CHA": "Charlotte",
+                            "CHI": "Chicago",
+                            "CLE": "Cleveland",
+                            "DAL": "Dallas",
+                            "DEN": "Denver",
+                            "DET": "Detroit",
+                            "GSW": "Golden State",
+                            "HOU": "Houston",
+                            "IND": "Indiana",
+                            "LAC": "LA Clippers",
+                            "LAL": "LA Lakers",
+                            "MEM": "Memphis",
+                            "MIA": "Miami",
+                            "MIL": "Milwaukee",
+                            "MIN": "Minnesota",
+                            "NOP": "New Orleans",
+                            "NYK": "New York",
+                            "OKC": "Okla City",
+                            "ORL": "Orlando",
+                            "PHI": "Philadelphia",
+                            "PHX": "Phoenix",
+                            "POR": "Portland",
+                            "SAC": "Sacramento",
+                            "SAS": "San Antonio",
+                            "TOR": "Toronto",
+                            "UTA": "Utah",
+                            "WAS": "Washington"
+                        }
+
+        month_map = { "JAN": "01",
+                      "FEB": "02",
+                      "MAR": "03",
+                      "APR": "04",
+                      "MAY": "05",
+                      "JUN": "06",
+                      "JUL": "07",
+                      "AUG": "08",
+                      "SEP": "09",
+                      "OCT": "10",
+                      "NOV": "11",
+                      "DEC": "12"
+                  }
+
+        for i in range(len(game_logs_df)):
+
+            opp = game_logs_df.iloc[i,4].split()[-1].strip()
+            opp_full = abbr_to_team_name[opp]
+            date = game_logs_df.iloc[i,3].split(' ')
+            date[0] = month_map[date[0]]
+            date[1] = date[1].strip(',')
+
+
+            # Print current progress in text
+            os.system('cls')
+            print(f"Getting Data from Game {i} of {len(game_logs_df)}\r")
+
+            url1 = f"https://www.teamrankings.com/nba/stat/opponent-points-per-game?date={date[2]}-{date[0]}-{date[1]}"
+            url2 = f"https://www.teamrankings.com/nba/stat/defensive-efficiency?date={date[2]}-{date[0]}-{date[1]}"
+            url3 = f"https://www.teamrankings.com/nba/stat/opponent-floor-percentage?date={date[2]}-{date[0]}-{date[1]}"
+            url4 = f"https://www.teamrankings.com/nba/stat/opponent-fastbreak-points-per-game?date={date[2]}-{date[0]}-{date[1]}"
+            url5 = f"https://www.teamrankings.com/nba/stat/opponent-fastbreak-efficiency?date={date[2]}-{date[0]}-{date[1]}"
+            url6 = f"https://www.teamrankings.com/nba/stat/opponent-points-from-2-pointers?date={date[2]}-{date[0]}-{date[1]}"
+            url7 = f"https://www.teamrankings.com/nba/stat/opponent-points-from-3-pointers?date={date[2]}-{date[0]}-{date[1]}"
+            urls = [url1, url2, url3, url4, url5,url6,url7]
+            for j in range(len(urls)):
+
+
+
+                response = requests.get(urls[j])
+                soup = BeautifulSoup(response.content, 'html.parser')
+                table = soup.find('table')
+                if table:
+                    headers = [th.get_text().strip() for th in table.find_all('th')]
+                    rows = [[td.get_text().strip() for td in tr.find_all('td')] for tr in table.find_all('tr')[1:]]
+                    df = pd.DataFrame(rows, columns=headers)
+                index = df.loc[df["Team"] == opp_full].index
+                if urls[j] == url1:
+                    pts_per_game_def.append(df.iloc[index[0],2])
+                    pts_l3_game_def.append(df.iloc[index[0],3])
+                if urls[j] == url2:
+                    def_eff.append(df.iloc[index[0],2])
+                    def_eff_l3.append(df.iloc[index[0],3])
+                if urls[j] == url3:
+                    opp_fp.append(df.iloc[index[0],2])
+                    opp_fp_l3.append(df.iloc[index[0],3])
+                if urls[j] == url4:
+                    opp_fb_pts.append(df.iloc[index[0],2])
+                    opp_fb_pts_l3.append(df.iloc[index[0],3])
+                if urls[j] == url5:
+                    opp_fb_eff.append(df.iloc[index[0],2])
+                    opp_fb_eff_l3.append(df.iloc[index[0],3])
+                if urls[j] == url6:
+                    opp_2pt.append(df.iloc[index[0],2])
+                    opp_2pt_l3.append(df.iloc[index[0],3])
+                if urls[j] == url7:
+                    opp_3pt.append(df.iloc[index[0],2])
+                    opp_3pt_l3.append(df.iloc[index[0],3])
+
+
+
+
+        df_w_def_stats = game_logs_df
+        df_w_def_stats["AVG D PTS ALLOWED"] = pts_per_game_def
+        df_w_def_stats["AVG D PTS ALLOWED L3"] = pts_l3_game_def
+        df_w_def_stats["OPP DEF EFF"] = def_eff
+        df_w_def_stats["OPP DEF EFF L3"] = def_eff_l3
+        df_w_def_stats["OPP F%"] = opp_fp
+        df_w_def_stats["OPP F% L3"] = opp_fp_l3
+        df_w_def_stats["OPP FB PTS"] = opp_fb_pts
+        df_w_def_stats["OPP FB PTS L3"] = opp_fb_pts_l3
+        df_w_def_stats["OPP FB EFF"] = opp_fb_eff
+        df_w_def_stats["OPP FB EFF L3"] = opp_fb_eff_l3
+        df_w_def_stats["OPP 2PTS"] = opp_2pt
+        df_w_def_stats["OPP 2PTS L3"] = opp_2pt_l3
+        df_w_def_stats["OPP 3PTS"] = opp_3pt
+        df_w_def_stats["OPP 3PTS L3"] = opp_3pt_l3
+        # Assuming df is your DataFrame
+        df_w_def_stats.iloc[:, 5:] = df_w_def_stats.iloc[:, 5:].apply(pd.to_numeric, errors='coerce')
+        return df_w_def_stats
 
 
 def main():
+    global defensive_stats
     player_name = input("Input Player Name (e.g. Lebron James): ")
     szn = input("Enter Season (e.g. 2023): ")
     nba_lookup = NBAPlayerLookup(active_only=True)
     player_ids = nba_lookup.display_player_matches(player_name)
     game_logs_df = nba_lookup.make_df(player_ids, szn)
     print(game_logs_df)
-    defensive_stats = nba_lookup.get_team_game_logs(game_logs_df, szn)
+    defensive_stats = nba_lookup.get_def_stats(game_logs_df)
+
 
     # If you want to inspect the defensive stats
     print(defensive_stats)
 
-
+    csv_file = f"{player_name.lower()} NBA Game Log.csv"
+    defensive_stats.to_csv(csv_file,index = False)
 if __name__ == "__main__":
     main()
