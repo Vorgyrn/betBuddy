@@ -91,7 +91,7 @@ class NBAPlayerLookup:
 
         return rolling_stats
 
-    def display_player_matches(self, player_name):
+    def ret_id(self, player_name):
         """
         Displays the player matches for the given player name.
 
@@ -120,7 +120,7 @@ class NBAPlayerLookup:
 
             # Fetch game logs
             game_logs = self.get_player_game_logs(player_id, szn)
-
+            game_logs= game_logs.iloc[::-1].reset_index(drop=True)
             # Display the first few game logs
             #print(game_logs)  # Display the first few rows of the DataFrame
 
@@ -133,25 +133,7 @@ class NBAPlayerLookup:
         else:
             print("No player found.")
 
-    def get_team_id_from_abbreviation(self, abbreviation):
-        """
-        Gets the team ID from a team abbreviation.
-
-        :param abbreviation: The team's abbreviation (e.g., 'LAL').
-        :return: The team ID if found, else None.
-        """
-        all_teams = teams.get_teams()
-
-        # Find the team that matches the abbreviation
-        team = next((team for team in all_teams if team['abbreviation'] == abbreviation), None)
-
-        if team:
-            return team['id']  # Return the team ID
-        else:
-            print(f"Team abbreviation '{abbreviation}' not found.")
-            return None
-
-    def get_team_game_logs(self, game_logs_df, szn):
+ 
         """
         Fetches the team game logs for each opponent based on the game logs of the player.
 
@@ -252,7 +234,7 @@ class NBAPlayerLookup:
 
             # Print current progress in text
             os.system('cls')
-            print(f"Getting Data from Game {i} of {len(game_logs_df)}\r")
+            print(f"Getting Data from Game {i+1} of {len(game_logs_df)}\r")
 
             url1 = f"https://www.teamrankings.com/nba/stat/opponent-points-per-game?date={date[2]}-{date[0]}-{date[1]}"
             url2 = f"https://www.teamrankings.com/nba/stat/defensive-efficiency?date={date[2]}-{date[0]}-{date[1]}"
@@ -262,11 +244,11 @@ class NBAPlayerLookup:
             url6 = f"https://www.teamrankings.com/nba/stat/opponent-points-from-2-pointers?date={date[2]}-{date[0]}-{date[1]}"
             url7 = f"https://www.teamrankings.com/nba/stat/opponent-points-from-3-pointers?date={date[2]}-{date[0]}-{date[1]}"
             urls = [url1, url2, url3, url4, url5,url6,url7]
-            for j in range(len(urls)):
+            for url in urls:
 
 
 
-                response = requests.get(urls[j])
+                response = requests.get(url)
                 soup = BeautifulSoup(response.content, 'html.parser')
                 table = soup.find('table')
                 if table:
@@ -274,31 +256,32 @@ class NBAPlayerLookup:
                     rows = [[td.get_text().strip() for td in tr.find_all('td')] for tr in table.find_all('tr')[1:]]
                     df = pd.DataFrame(rows, columns=headers)
                 index = df.loc[df["Team"] == opp_full].index
-                if urls[j] == url1:
+                if url == url1:
                     pts_per_game_def.append(df.iloc[index[0],2])
                     pts_l3_game_def.append(df.iloc[index[0],3])
-                if urls[j] == url2:
+                elif url == url2:
                     def_eff.append(df.iloc[index[0],2])
                     def_eff_l3.append(df.iloc[index[0],3])
-                if urls[j] == url3:
-                    opp_fp.append(df.iloc[index[0],2])
-                    opp_fp_l3.append(df.iloc[index[0],3])
-                if urls[j] == url4:
+                elif url == url3:
+                    opp_fp.append(df.iloc[index[0],2].strip('%'))
+                    opp_fp_l3.append(df.iloc[index[0],3].strip('%'))
+                elif url == url4:
                     opp_fb_pts.append(df.iloc[index[0],2])
                     opp_fb_pts_l3.append(df.iloc[index[0],3])
-                if urls[j] == url5:
+                elif url == url5:
                     opp_fb_eff.append(df.iloc[index[0],2])
                     opp_fb_eff_l3.append(df.iloc[index[0],3])
-                if urls[j] == url6:
+                elif url == url6:
                     opp_2pt.append(df.iloc[index[0],2])
                     opp_2pt_l3.append(df.iloc[index[0],3])
-                if urls[j] == url7:
+                elif url == url7:
                     opp_3pt.append(df.iloc[index[0],2])
                     opp_3pt_l3.append(df.iloc[index[0],3])
+        os.system('cls')
+        print("All Game Data Found Successfully!")
 
 
-
-
+        
         df_w_def_stats = game_logs_df
         df_w_def_stats["AVG D PTS ALLOWED"] = pts_per_game_def
         df_w_def_stats["AVG D PTS ALLOWED L3"] = pts_l3_game_def
@@ -314,8 +297,10 @@ class NBAPlayerLookup:
         df_w_def_stats["OPP 2PTS L3"] = opp_2pt_l3
         df_w_def_stats["OPP 3PTS"] = opp_3pt
         df_w_def_stats["OPP 3PTS L3"] = opp_3pt_l3
+    
         # Assuming df is your DataFrame
-        df_w_def_stats.iloc[:, 5:] = df_w_def_stats.iloc[:, 5:].apply(pd.to_numeric, errors='coerce')
+        df_w_def_stats.iloc[:, 6:26] = df_w_def_stats.iloc[:, 6:26].apply(pd.to_numeric, errors='coerce')
+        df_w_def_stats.iloc[:, 47:] = df_w_def_stats.iloc[:, 47:].apply(pd.to_numeric, errors='coerce')
         return df_w_def_stats
 
 
@@ -324,9 +309,8 @@ def main():
     player_name = input("Input Player Name (e.g. Lebron James): ")
     szn = input("Enter Season (e.g. 2023): ")
     nba_lookup = NBAPlayerLookup(active_only=True)
-    player_ids = nba_lookup.display_player_matches(player_name)
-    game_logs_df = nba_lookup.make_df(player_ids, szn)
-    print(game_logs_df)
+    player_id = nba_lookup.ret_id(player_name)
+    game_logs_df = nba_lookup.make_df(player_id, szn)
     defensive_stats = nba_lookup.get_def_stats(game_logs_df)
 
 
