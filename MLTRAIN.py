@@ -1,103 +1,95 @@
+import ast
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.compose import ColumnTransformer
+from sklearn.model_selection import train_test_split
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense
 import os
 
-# Define the feature engineering function
-def feature_eng(player, columns):
-    df = pd.read_csv(f"{player.lower()} NBA Game Log.csv")
-
-    # Dictionary to hold rolling lists for each column
-    rolling_data = {f'L5 {col}': [] for col in columns}
-
-    for i in range(len(df)):
-        for col in columns:
-            if i < 6:
-                rolling_data[f'L5 {col}'].append(None)
-            else:
-                rolling_list = df[col][i-6:i-1].tolist()
-                rolling_data[f'L5 {col}'].append(rolling_list)
-
-    for col in columns:
-        df[f'L5 {col}'] = rolling_data[f'L5 {col}']
-
-    df.dropna(subset=[f'L5 {col}' for col in columns], inplace=True)
-    print(df)
-    return df
-
-# Prepare the data for the LSTM model
-def prepare_data(player, columns, test_size=0.2):
-    df = feature_eng(player, columns)
-    df = df.sort_values(by='DATE')
-
-    # One-hot encode H/A status
-    df['H/A Status'] = df['H/A Status'].apply(lambda x: 1 if x == '@' else 0)
-
-    # Encode 'Opp' column
-    df['OPP'] = df['OPP'].astype('category').cat.codes
-    print(df)
-    # Combine rolling lists into sequences for LSTM
-    rolling_features = [f'L5 {col}' for col in columns]
-   
-
-     # Combine both sets of features
-   
-   
-    X = np.array(df[rolling_features].map(np.array).values.tolist())
-    print(X)  # Shape (samples, timesteps, features)
-    y = df['PTS'].values  # Shape (samples,)
-
-    # Split into training and testing
-    split_index = int(len(X) * (1 - test_size))
-    X_train, X_test = X[:split_index], X[split_index:]
-    y_train, y_test = y[:split_index], y[split_index:]
-
-    return X_train, X_test, y_train, y_test
-
-def train_lstm(X_train, y_train, X_test, y_test):
-    model = Sequential()
-    model.add(LSTM(100, return_sequences=True, input_shape=(X_train.shape[1], X_train.shape[2])))
-    model.add(LSTM(100))
-    model.add(Dense(1))
-
-    model.compile(optimizer='adam', loss='mean_squared_error')
-    model.summary()
-
-    history = model.fit(X_train, y_train, epochs=50, batch_size=32, validation_split=0.2)
-
-    loss = model.evaluate(X_test, y_test)
-    #print(f'Test Loss: {loss}')
-        # Predict the scores for the test set
-    y_pred = model.predict(X_test)
-
-    # Output the predicted and actual scores
-    for actual, predicted in zip(y_test[:10], y_pred[:10]):  # Show first 10 predictions
-        print(f"Actual: {actual:.2f}, Predicted: {predicted[0]:.2f}")
-    return model
-
-
-# Set a random seed for reproducibility
-np.random.seed(42)
-tf.random.set_seed(42)
-
+# TODO add a health metric based on rest/injuries/games in a row/home/away
+scaler = StandardScaler()
+def fuck_you(val):
+    return np.array(ast.literal_eval(val))
 # Main function
 def main():
-    os.system('cls')
-    player = "Lebron james"
-    columns = ['PTS', 'REB', 'AST', 'STL', 'BLK', 'FGM', 'FGA', '3PM', '3PA', 
-               'FTM', 'FTA', 'TS%', '+/-',"AVG D PTS ALLOWED","AVG D PTS ALLOWED L3","OPP DEF EFF","OPP DEF EFF L3","OPP F%","OPP F% L3","OPP FB PTS","OPP FB PTS L3","OPP FB EFF","OPP FB EFF L3","OPP 2PTS","OPP 2PTS L3","OPP 3PTS","OPP 3PTS L3"]
+    df = pd.read_csv("lebron james NBA Game Log.csv")
+    for i in range(len(df)):
+        if '@' in df.iloc[i,4]:
+            df.iloc[i,4] = 1
+        else:
+            df.iloc[i,4] = 0
+    print(df.columns)   
+    headers = ['MATCHUP','MIN_ROLLING', 'FGM_ROLLING',
+       'FGA_ROLLING', 'FG_PCT_ROLLING', 'FG3M_ROLLING', 'FG3A_ROLLING',
+       'FG3_PCT_ROLLING', 'FTM_ROLLING', 'FTA_ROLLING', 'FT_PCT_ROLLING',
+       'OREB_ROLLING', 'DREB_ROLLING', 'REB_ROLLING', 'AST_ROLLING',
+       'STL_ROLLING', 'BLK_ROLLING', 'TOV_ROLLING', 'PF_ROLLING',
+       'PTS_ROLLING', 'PLUS_MINUS_ROLLING', 'AVG D PTS ALLOWED',
+       'AVG D PTS ALLOWED L3', 'OPP DEF EFF', 'OPP DEF EFF L3', 'OPP F%',
+       'OPP F% L3', 'OPP FB PTS', 'OPP FB PTS L3', 'OPP FB EFF',
+       'OPP FB EFF L3', 'OPP 2PTS', 'OPP 2PTS L3', 'OPP 3PTS', 'OPP 3PTS L3']
+    test_headers = ['MIN', 'FGM', 'FGA', 'FG_PCT', 'FG3M', 'FG3A', 'FG3_PCT', 'FTM', 'FTA',
+       'FT_PCT', 'OREB', 'DREB', 'REB', 'AST', 'STL', 'BLK', 'TOV', 'PF',
+       'PTS', 'PLUS_MINUS']
+    # drop na columns
+    rolling_columns = [col for col in headers if "ROLLING" in col]
+    non_rolling_columns = [col for col in headers if "ROLLING" not in col]
 
+    for col in rolling_columns:
+        df[col] = df[col].apply(fuck_you)
+        
 
-    # Prepare the data
-    X_train, X_test, y_train, y_test = prepare_data(player, columns)
+    
 
-    # Train and evaluate the LSTM
-    model = train_lstm(X_train, y_train, X_test, y_test)
+    scaler = StandardScaler()
 
+    #df[non_rolling_columns] = scaler.fit_transform(df[non_rolling_columns])
+    df[test_headers] = scaler.fit_transform(df[test_headers])
+    features = df[test_headers]
+    target = df['PTS']
+    X = features
+    y = target
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    
+    print(X_train.shape)
+    
+    
+
+        # Reshape input data for LSTM (samples, timesteps, features)
+    time_steps = 5
+    X_train_reshaped = np.reshape(X_train.values, (X_train.shape[0], time_steps, int(X_train.shape[1]/time_steps)))  # 1 timestep
+    X_test_reshaped = np.reshape(X_test.values, (X_test.shape[0], time_steps, int(X_test.shape[1]/time_steps)))  # 1 timestep
+    
+    model = Sequential()
+    model.add(LSTM(128, input_shape=(time_steps, X_train_reshaped.shape[2]), activation='relu'))  # First hidden layer
+    model.add(Dense(64, activation='relu'))  # Second hidden layer
+    model.add(Dense(1))  # Output layer (regression task)
+
+    # Compile the model
+    model.compile(optimizer='adam', loss='mean_squared_error')
+
+    # Train the model
+    model.fit(X_train_reshaped, y_train, epochs=20, batch_size=32, validation_data=(X_test_reshaped, y_test))
+
+    # Evaluate the model
+    loss = model.evaluate(X_test_reshaped, y_test)
+    print(f'Model Loss: {loss}')
+
+    # Predict on test data
+    predictions = model.predict(X_test_reshaped)
+     # Unscale the predictions
+    unscaled_ps = scaler.inverse_transform(np.concatenate([X_test.values[:, :X_test.shape[1]-1], predictions], axis=1))[:, -1]
+    
+    y_test_unscaled = scaler.inverse_transform(y_test.values.reshape(-1, 1))
+    print("Actual vs Predicted (First 5 samples):")
+    for actual, predicted in zip(y_test_unscaled[:5], unscaled_ps[:5]):
+        print(f"Actual: {actual[0]}, Predicted: {predicted[0]}")
+    
+
+  
 if __name__ == "__main__":
     main()
 
