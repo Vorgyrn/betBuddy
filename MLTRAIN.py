@@ -1,95 +1,128 @@
-import ast
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
-from sklearn.compose import ColumnTransformer
-from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import LSTM, Dense
-import os
+from tensorflow.keras.layers import LSTM, Dense, Dropout
+import matplotlib.pyplot as plt
 
-# TODO add a health metric based on rest/injuries/games in a row/home/away
-scaler = StandardScaler()
-def fuck_you(val):
-    return np.array(ast.literal_eval(val))
 # Main function
 def main():
-    df = pd.read_csv("lebron james NBA Game Log.csv")
-    for i in range(len(df)):
-        if '@' in df.iloc[i,4]:
-            df.iloc[i,4] = 1
-        else:
-            df.iloc[i,4] = 0
-    print(df.columns)   
-    headers = ['MATCHUP','MIN_ROLLING', 'FGM_ROLLING',
-       'FGA_ROLLING', 'FG_PCT_ROLLING', 'FG3M_ROLLING', 'FG3A_ROLLING',
-       'FG3_PCT_ROLLING', 'FTM_ROLLING', 'FTA_ROLLING', 'FT_PCT_ROLLING',
-       'OREB_ROLLING', 'DREB_ROLLING', 'REB_ROLLING', 'AST_ROLLING',
-       'STL_ROLLING', 'BLK_ROLLING', 'TOV_ROLLING', 'PF_ROLLING',
-       'PTS_ROLLING', 'PLUS_MINUS_ROLLING', 'AVG D PTS ALLOWED',
-       'AVG D PTS ALLOWED L3', 'OPP DEF EFF', 'OPP DEF EFF L3', 'OPP F%',
-       'OPP F% L3', 'OPP FB PTS', 'OPP FB PTS L3', 'OPP FB EFF',
-       'OPP FB EFF L3', 'OPP 2PTS', 'OPP 2PTS L3', 'OPP 3PTS', 'OPP 3PTS L3']
-    test_headers = ['MIN', 'FGM', 'FGA', 'FG_PCT', 'FG3M', 'FG3A', 'FG3_PCT', 'FTM', 'FTA',
-       'FT_PCT', 'OREB', 'DREB', 'REB', 'AST', 'STL', 'BLK', 'TOV', 'PF',
-       'PTS', 'PLUS_MINUS']
-    # drop na columns
-    rolling_columns = [col for col in headers if "ROLLING" in col]
-    non_rolling_columns = [col for col in headers if "ROLLING" not in col]
+    global model
+    player = "lebron james"
+    df = pd.read_csv(f"{player.lower().strip()} NBA Game Log.csv")
+    print(df.head())
+    print(f"Total records: {len(df)}")
 
-    for col in rolling_columns:
-        df[col] = df[col].apply(fuck_you)
-        
+    # Process the MATCHUP column and replace '@' with 1 and other with 0
+    df['MATCHUP'] = df['MATCHUP'].apply(lambda x: 1 if '@' in x else 0)
 
+    # Define the feature columns
+    player_features = ['MATCHUP', 'MIN', 'FGM', 'FGA', 'FG_PCT', 'FG3M', 'FG3A', 'FG3_PCT', 'FTM', 'FTA',
+                       'FT_PCT', 'OREB', 'DREB', 'REB', 'AST', 'STL', 'BLK', 'TOV', 'PF', 'PLUS_MINUS']
     
-
-    scaler = StandardScaler()
-
-    #df[non_rolling_columns] = scaler.fit_transform(df[non_rolling_columns])
-    df[test_headers] = scaler.fit_transform(df[test_headers])
-    features = df[test_headers]
-    target = df['PTS']
-    X = features
-    y = target
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    defensive_features = ['AVG D PTS ALLOWED', 'AVG D PTS ALLOWED L3', 'OPP DEF EFF', 'OPP DEF EFF L3', 
+                          'OPP F%', 'OPP F% L3', 'OPP FB PTS', 'OPP FB PTS L3', 'OPP FB EFF', 
+                          'OPP FB EFF L3', 'OPP 2PTS', 'OPP 2PTS L3', 'OPP 3PTS', 'OPP 3PTS L3']
     
-    print(X_train.shape)
+    headers = player_features + defensive_features
     
-    
+    # Extract features and target variables
+    features = df[headers]
+    target = df["PTS"]
 
-        # Reshape input data for LSTM (samples, timesteps, features)
+    # Apply MinMaxScaler to normalize the feature columns
+    scaler = MinMaxScaler()
+    features_scaled = scaler.fit_transform(features)
+
+    # Define time steps for LSTM
     time_steps = 5
-    X_train_reshaped = np.reshape(X_train.values, (X_train.shape[0], time_steps, int(X_train.shape[1]/time_steps)))  # 1 timestep
-    X_test_reshaped = np.reshape(X_test.values, (X_test.shape[0], time_steps, int(X_test.shape[1]/time_steps)))  # 1 timestep
-    
+
+    # Function to create input sequences
+    def create_sequences(features, time_steps):
+        sequences = []
+        indices = []
+        for i in range(len(features) - time_steps):
+            seq = features[i:(i + time_steps), :len(player_features)]  # Past performances
+            defensive_stats = features[i + time_steps, len(player_features):]
+            combined_seq = np.hstack((seq, np.tile(defensive_stats, (time_steps, 1))))
+            sequences.append(combined_seq)
+            indices.append(i + time_steps)
+        return np.array(sequences), np.array(indices)
+
+    # Call the function to create sequences and get indices
+    input_sequences, game_indices = create_sequences(features_scaled, time_steps)
+    # Adjust the target to match the number of sequences
+    aligned_target = target[time_steps:].reset_index(drop=True)
+
+    # Verify the shapes of the input sequences and target
+    print(f"Input sequences shape: {input_sequences.shape}")
+    print(f"Aligned target shape: {aligned_target.shape}")
+
+    # Manually split the data into training and testing sets
+    split_index = int(len(input_sequences) * 0.9)  # Keep last 10% for testing
+    X_train, X_test = input_sequences[:split_index], input_sequences[split_index:]
+    y_train, y_test = aligned_target[:split_index], aligned_target[split_index:]
+    train_indices, test_indices = game_indices[:split_index], game_indices[split_index:]
+
+    # Verify the shapes of the training and testing sets
+    print(f"X_train shape: {X_train.shape}, y_train shape: {y_train.shape}")
+    print(f"X_test shape: {X_test.shape}, y_test shape: {y_test.shape}")
+
+    # Build the LSTM model
     model = Sequential()
-    model.add(LSTM(128, input_shape=(time_steps, X_train_reshaped.shape[2]), activation='relu'))  # First hidden layer
-    model.add(Dense(64, activation='relu'))  # Second hidden layer
-    model.add(Dense(1))  # Output layer (regression task)
+    model.add(LSTM(50, activation='relu', return_sequences=True, input_shape=(time_steps, input_sequences.shape[2])))
+    model.add(Dropout(0.2))
+    model.add(LSTM(50, activation='relu'))
+    model.add(Dropout(0.2))
+    model.add(Dense(1))
 
     # Compile the model
-    model.compile(optimizer='adam', loss='mean_squared_error')
+    model.compile(optimizer='adam', loss='mse')
 
-    # Train the model
-    model.fit(X_train_reshaped, y_train, epochs=20, batch_size=32, validation_data=(X_test_reshaped, y_test))
+    # Train the model without shuffling
+    history = model.fit(X_train, y_train, epochs=100, batch_size=32, validation_split=0.1, shuffle=False, verbose=1)
 
     # Evaluate the model
-    loss = model.evaluate(X_test_reshaped, y_test)
-    print(f'Model Loss: {loss}')
+    loss = model.evaluate(X_test, y_test, verbose=1)
+    print(f"Test loss: {loss}")
 
-    # Predict on test data
-    predictions = model.predict(X_test_reshaped)
-     # Unscale the predictions
-    unscaled_ps = scaler.inverse_transform(np.concatenate([X_test.values[:, :X_test.shape[1]-1], predictions], axis=1))[:, -1]
-    
-    y_test_unscaled = scaler.inverse_transform(y_test.values.reshape(-1, 1))
-    print("Actual vs Predicted (First 5 samples):")
-    for actual, predicted in zip(y_test_unscaled[:5], unscaled_ps[:5]):
-        print(f"Actual: {actual[0]}, Predicted: {predicted[0]}")
-    
+    # Make predictions on the test set
+    y_pred = model.predict(X_test).flatten()
+    y_test = y_test.to_numpy()
 
-  
+    # Sort test indices and their corresponding values
+    sorted_indices = np.argsort(test_indices)
+    test_indices_sorted = test_indices[sorted_indices]
+    y_test_sorted = y_test[sorted_indices]
+    y_pred_sorted = y_pred[sorted_indices]
+
+    # Plot predictions vs. actual values using a line plot
+    plt.figure(figsize=(12, 6))
+
+    # Line plot for actual and predicted values
+    plt.plot(test_indices_sorted, y_test_sorted, marker = 'o',label='Actual')
+    plt.plot(test_indices_sorted, y_pred_sorted, marker = 'o', label='Predicted')
+
+    # Adding labels to the axes, title, and grid for better readability
+    plt.xlabel('Game Index')
+    plt.ylabel('Points')
+    plt.title('Predicted vs Actual Points')
+    plt.legend()
+    plt.grid()
+
+    # Show plot
+    plt.show()
+
+    # Calculate the percentage of predictions within 5 points of the actual values
+    tolerance = 5
+    count = sum(abs(y_test_sorted - y_pred_sorted) < tolerance)
+    print(f"Predictions within {tolerance} points:\n", f"Correct: {count}\n",f"Total: {len(y_test_sorted)}\n", f"Accuracy: {(count / len(y_test_sorted))*100}%")
+
+    # Printing the prediction comparison for verification
+    print('Game Index -- PTtest -- PTpred')
+    for idx, actual, predicted in zip(test_indices_sorted, y_test_sorted, y_pred_sorted):
+        print(f'{idx} -- {actual} -- {predicted}')
+
 if __name__ == "__main__":
     main()
-
