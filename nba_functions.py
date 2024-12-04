@@ -64,11 +64,10 @@ def fetch_nba_props():
             headers = ['name', f'fanduel_{stat.lower()}', f'fanduel_{stat.lower()}Under', f'fanduel_{stat.lower()}Over']
             df = df[headers]
             df = df.dropna()
-            # Add DataFrame to all_data dictionary
+            df = df.rename(columns={'name':'PLAYER',f'fanduel_{stat.lower()}':f'{stat} LINE', f'fanduel_{stat.lower()}Under':'UNDER',
+                           f'fanduel_{stat.lower()}Over':'OVER'})
+            # Add DataFrame to all_lines dictionary
             all_lines[stat] = df
-            # Display the DataFrame
-            #print(f"Data for {stat}:")
-            #print(df)
         else:
             print(f"No data found for stat: {stat}")
 
